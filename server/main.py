@@ -2,7 +2,10 @@ from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uuid
-from server.websockets import manager
+from server.websockets import manager, ClientActionPayload, ServerPushEvent
+from pydantic import BaseModel, ValidationError
+from server.database import async_session_maker
+from server.repository import ArenaRepository
 
 app = FastAPI(title="Agent Arena", version="01.02.00")
 
@@ -24,7 +27,10 @@ class MatchResponse(BaseModel):
 
 @app.post("/api/v1/lobby/match", response_model=MatchResponse)
 async def create_match():
-    return MatchResponse(match_id=str(uuid.uuid4()))
+    async with async_session_maker() as session:
+        repo = ArenaRepository(session)
+        match = await repo.create_match()
+    return MatchResponse(match_id=str(match.id))
 
 class JoinRequest(BaseModel):
     match_id: str
@@ -53,7 +59,26 @@ async def websocket_endpoint(websocket: WebSocket, match_id: str, token: str = N
     await manager.connect(websocket, match_id)
     try:
         while True:
-            # ARENA-010 will implement routing, just keep connection alive for now
-            await websocket.receive_text()
+            data = await websocket.receive_json()
+            try:
+                payload = ClientActionPayload(**data)
+                if payload.action == "chat_message":
+                    sender = payload.payload.get("sender", "Unknown")
+                    message = payload.payload.get("message", "")
+                    
+                    # Persist to DB
+                    async with async_session_maker() as session:
+                        repo = ArenaRepository(session)
+                        await repo.log_chat(match_id, sender, message)
+                    
+                    # Broadcast
+                    push_event = ServerPushEvent(
+                        event="chat_message", 
+                        data={"sender": sender, "message": message}
+                    )
+                    await manager.broadcast(match_id, push_event)
+            except ValidationError:
+                await websocket.send_json({"error": "Invalid payload format"})
+                
     except WebSocketDisconnect:
         manager.disconnect(websocket, match_id)
