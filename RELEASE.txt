@@ -1,3 +1,10 @@
+Version v04.02.00 (2026-07-18)
+---------------------------
+- Connected Web UI to FastAPI backend via WebSockets.
+- Implemented `/api/v1/lobby/match` and `/api/v1/lobby/join` HTTP calls in Vanilla JS.
+- Established native `ws.onmessage` event router to parse JSON push events.
+- Added `/ui` static file mount to FastAPI so the backend can serve the frontend directly.
+
 Version v04.01.00 (2026-07-18)
 ---------------------------
 - Designed premium dark-mode Glassmorphism UI aesthetic using backdrop-filters and translucent panels.

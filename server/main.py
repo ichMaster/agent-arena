@@ -7,7 +7,9 @@ from pydantic import BaseModel, ValidationError
 from server.database import async_session_maker
 from server.repository import ArenaRepository
 
-app = FastAPI(title="Agent Arena", version="04.01.00")
+from fastapi.staticfiles import StaticFiles
+
+app = FastAPI(title="Agent Arena", version="04.02.00")
 
 # Allow all origins for local development
 app.add_middleware(
@@ -17,6 +19,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Serve the frontend web UI directly from the backend
+app.mount("/ui", StaticFiles(directory="web", html=True), name="web")
 
 @app.get("/api/v1/health")
 async def health_check():
