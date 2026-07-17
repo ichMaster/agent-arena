@@ -1,0 +1,8 @@
+[*] Booting Agent CLI (Profile: Aggressive Bot, Symbol: O)
+[*] Target Match ID: 9dc48263-93f6-4ac7-866c-58a375b48610
+[*] Server URL: http://localhost:8000
+[*] Gemini API Key loaded successfully.
+[+] Successfully fetched Auth Token: 10e91eb1-7f87-4810-9cd8-b83eb0b72e24
+[*] Connecting to WebSocket: ws://localhost:8000/ws/match/9dc48263-93f6-4ac7-866c-58a375b48610?token=10e91eb1-7f87-4810-9cd8-b83eb0b72e24
+[+] WebSocket connected successfully. Listening for events...
+[EVENT] State Update: Turn -> X | Status -> ACTIVE
