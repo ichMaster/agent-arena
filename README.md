@@ -55,17 +55,22 @@ curl -X POST http://127.0.0.1:8000/api/v1/lobby/join \
   -d '{"match_id": "<PASTE-YOUR-MATCH-ID-HERE>", "player_name": "Player 1"}'
 ```
 
-## Testing WebSockets
+## Testing WebSockets (Tic-Tac-Toe)
 
-You can manually test the real-time WebSocket capabilities using the included HTML client:
+You can manually test the real-time WebSocket capabilities and play a full game of Tic-Tac-Toe using the included HTML client:
 
 1. Ensure your database is initialized:
 ```bash
 PYTHONPATH=. python server/init_db.py
 ```
+
 2. Start the game server:
 ```bash
 uvicorn server.main:app --reload
 ```
+
 3. Open [test_client.html](test_client.html) in your browser.
-4. Click **"Connect to Match"** and try chatting. Open the file in a second browser tab to test concurrent client connections!
+4. Click **"Host New Match"** in the browser. You'll see it connect and the board will activate. You are player **X**.
+5. To test multiplayer, open a *second tab* in your browser with `test_client.html`. 
+6. In the second tab, click **"Join Match ID..."** and paste the Match ID from the first tab's logs. You'll join as player **O**.
+7. Play the game! The server will enforce turns, broadcast the board state, and declare a winner when the game is over.
