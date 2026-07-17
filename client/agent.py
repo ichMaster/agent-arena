@@ -96,7 +96,7 @@ async def run_agent(match_id: str, server_url: str, symbol: str):
                     memory.add(f"Board State: {board} | Current Turn: {turn}")
                     
                     # Evaluate if it's our turn
-                    if turn == symbol:
+                    if turn == symbol and status == "ACTIVE":
                         print(f"[*] It is my turn ({symbol})! Generating prompt...")
                         valid_moves = [i for i, cell in enumerate(board) if cell is None]
                         
