@@ -1,3 +1,11 @@
+Version v01.03.00 (2026-07-17)
+---------------------------
+- docs: add test_client.html and update README with WS testing instructions
+- ARENA-011: Concurrent WebSocket Tests
+- ARENA-010: Event Routing & Broadcast Loop
+- ARENA-009: WebSocket Endpoint & Auth Handshake
+- ARENA-008: WebSocket Schemas & ConnectionManager
+
 Version v01.02.00 (2026-07-17)
 ---------------------------
 - Configured foundational `aiosqlite` async database engine and declarative Base.
