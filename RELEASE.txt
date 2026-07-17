@@ -1,3 +1,11 @@
+Version v04.03.00 (2026-07-18)
+---------------------------
+- Added dynamic Board Reactivity to visually parse `state_update` payloads into the DOM Grid.
+- Bound empty grid cells to emit `submit_move` WebSocket events (only when it is the human's turn).
+- Fully implemented the interactive Chat Ledger to display Agent vs Human messages.
+- Handled End of Game triggers (win/loss/draw) to freeze the board and announce the winner.
+- Fixed a backend bug where the Tic-Tac-Toe state incorrectly emitted `status: None` during an active game.
+
 Version v04.02.00 (2026-07-18)
 ---------------------------
 - Connected Web UI to FastAPI backend via WebSockets.
