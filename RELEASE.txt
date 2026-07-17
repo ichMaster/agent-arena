@@ -1,3 +1,11 @@
+Version v01.02.00 (2026-07-17)
+---------------------------
+- Configured foundational `aiosqlite` async database engine and declarative Base.
+- Defined primary SQLAlchemy schema models (`MatchModel`, `MoveLogModel`, `ChatLogModel`).
+- Implemented `ArenaRepository` for decoupled CRUD persistence logic.
+- Added strict foreign key constraint handling and pytests.
+- Added database initialization and seeding script `server/init_db.py`.
+
 Version v01.01.00 (2026-07-17)
 ---------------------------
 - Defined Game Server modular architecture and phase-based roadmap specifications.
