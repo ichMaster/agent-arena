@@ -1,5 +1,5 @@
 name: Cowardly Bot
-model_type: gemini-1.5-flash
+model_type: gemini-3.1-pro-preview
 temperature: 1.2
 memory_limit: 5
 system_prompt: |
