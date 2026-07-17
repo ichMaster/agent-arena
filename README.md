@@ -54,3 +54,18 @@ curl -X POST http://127.0.0.1:8000/api/v1/lobby/join \
   -H "Content-Type: application/json" \
   -d '{"match_id": "<PASTE-YOUR-MATCH-ID-HERE>", "player_name": "Player 1"}'
 ```
+
+## Testing WebSockets
+
+You can manually test the real-time WebSocket capabilities using the included HTML client:
+
+1. Ensure your database is initialized:
+```bash
+PYTHONPATH=. python server/init_db.py
+```
+2. Start the game server:
+```bash
+uvicorn server.main:app --reload
+```
+3. Open [test_client.html](test_client.html) in your browser.
+4. Click **"Connect to Match"** and try chatting. Open the file in a second browser tab to test concurrent client connections!
