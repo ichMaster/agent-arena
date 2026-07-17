@@ -18,13 +18,14 @@ This skill automates the sequential implementation, validation, and release of a
 ### Step 1: Scan and Order the Implementation Phases
 1. Scan the `spec/implementation/` directory for files matching `v*-issues.md`.
 2. Order them chronologically (e.g., `v01.01`, `v01.02`, `v01.03`, `v02.01`, etc.).
-3. Present the list of phases to be executed to the user.
+3. Record the start time of the entire run.
+4. Present the list of phases to be executed to the user.
 
 ### Step 2: Sequential Phase Execution Loop
 For each phase (e.g., `vXX.YY`):
 
 #### 2.1 Parse Phase Issues
-Read the `spec/implementation/vXX.YY-issues.md` file to identify the list of issues, descriptions, tasks, and acceptance criteria.
+Read the `spec/implementation/vXX.YY-issues.md` file to identify the list of issues, descriptions, tasks, and acceptance criteria. Record the start time of this phase.
 
 #### 2.2 Execute Issues Sequentially
 For each issue (e.g., `ARENA-xxx`) within the current phase:
@@ -60,8 +61,11 @@ After all issues in the current phase are successfully implemented and committed
    git push origin Gemini-3.5Flash-dev
    git push origin --tags --force
    ```
-8. Generate the execution report `spec/implementation/vXX.YY-execution-report.md` summarizing what was done and the validation results.
+8. Calculate the duration of this phase. Generate the execution report `spec/implementation/vXX.YY-execution-report.md` summarizing what was done, validation results, and the phase execution duration.
 9. Commit and push the execution report.
 
 ### Step 3: Complete Execution
-Once all phases are processed, print a final summary of all versions implemented and released.
+Once all phases are processed:
+1. Calculate the total execution time of the entire run.
+2. Print a final summary of all versions implemented and released, along with the total duration.
+
