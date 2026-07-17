@@ -57,7 +57,7 @@ curl -X POST http://127.0.0.1:8000/api/v1/lobby/join \
 
 ## Testing WebSockets (Tic-Tac-Toe)
 
-You can manually test the real-time WebSocket capabilities and play a full game of Tic-Tac-Toe using the included HTML client:
+You can manually test the real-time WebSocket capabilities and play a full game of Tic-Tac-Toe using the modern Web UI:
 
 1. Ensure your database is initialized:
 ```bash
@@ -66,16 +66,16 @@ PYTHONPATH=. python server/init_db.py
 
 2. Start the game server:
 ```bash
-uvicorn server.main:app --reload
+PYTHONPATH=. uvicorn server.main:app --reload
 ```
 
-3. Open [test_client.html](test_client.html) in your browser.
+3. Open **[http://localhost:8000/ui](http://localhost:8000/ui)** in your browser.
 4. Click **"Host New Match"** in the browser. You'll see it connect and the board will activate. You are player **X**.
-5. To test multiplayer, open a *second tab* in your browser with `test_client.html`. 
-6. In the second tab, click **"Join Match ID..."** and paste the Match ID from the first tab's logs. You'll join as player **O**.
+5. To test multiplayer, open a *second tab* in your browser and go to `http://localhost:8000/ui`. 
+6. In the second tab, click **"Join Match ID..."** and paste the Match ID from the first tab. You'll join as player **O**.
 7. Play the game! The server will enforce turns, broadcast the board state, and declare a winner when the game is over.
 
-## Testing the Agent CLI (Phase 3 Complete)
+## Testing the Agent CLI 
 
 The Agent CLI connects to the game, listens to events, and uses Gemini to autonomously evaluate the board, make moves, and trash-talk its opponents in real-time.
 
@@ -84,8 +84,8 @@ The Agent CLI connects to the game, listens to events, and uses Gemini to autono
    ```bash
    PYTHONPATH=. uvicorn server.main:app --reload
    ```
-3. Open `client/test_client.html` in your web browser.
-4. Click **Create Match** and then **Join Match**. You will be assigned the symbol `X`.
+3. Open `http://localhost:8000/ui` in your web browser.
+4. Click **Host New Match**. You will be assigned the symbol `X`.
 5. Copy the **Match ID** from the UI.
 6. Open a new terminal instance and run the Agent CLI, passing it the Match ID and the symbol `O`:
    ```bash
