@@ -5,9 +5,24 @@ import os
 import json
 import websockets
 from dotenv import load_dotenv
+from client.llm import GeminiClient
 
 # Load environment variables
 load_dotenv()
+
+class MemoryWindow:
+    def __init__(self, limit=10):
+        self.limit = limit
+        self.history = []
+        
+    def add(self, event_str: str):
+        self.history.append(event_str)
+        if len(self.history) > self.limit:
+            self.history.pop(0)
+            
+    def get_context(self) -> str:
+        return "\n".join(self.history)
+
 
 async def get_auth_token(base_url: str, match_id: str) -> str:
     join_url = f"{base_url}/api/v1/lobby/join"
@@ -24,10 +39,13 @@ async def get_auth_token(base_url: str, match_id: str) -> str:
             data = await response.json()
             return data["token"]
 
-async def run_agent(match_id: str, server_url: str):
-    print(f"[*] Booting Agent CLI")
+async def run_agent(match_id: str, server_url: str, symbol: str):
+    print(f"[*] Booting Agent CLI (Symbol: {symbol})")
     print(f"[*] Target Match ID: {match_id}")
     print(f"[*] Server URL: {server_url}")
+    
+    memory = MemoryWindow()
+    llm_client = GeminiClient()
 
     # Check for GEMINI_API_KEY as requested
     api_key = os.getenv("GEMINI_API_KEY")
@@ -69,12 +87,47 @@ async def run_agent(match_id: str, server_url: str):
                 payload = data.get("data", {})
                 
                 if event_type == "state_update":
-                    print(f"[EVENT] State Update: Turn -> {payload.get('current_turn')} | Status -> {payload.get('status')}")
-                    # Placeholder: Evaluate if it's our turn
+                    turn = payload.get('current_turn')
+                    status = payload.get('status')
+                    board = payload.get('board')
+                    print(f"[EVENT] State Update: Turn -> {turn} | Status -> {status}")
+                    
+                    # Log state to memory
+                    memory.add(f"Board State: {board} | Current Turn: {turn}")
+                    
+                    # Evaluate if it's our turn
+                    if turn == symbol:
+                        print(f"[*] It is my turn ({symbol})! Generating prompt...")
+                        valid_moves = [i for i, cell in enumerate(board) if cell is None]
+                        
+                        prompt = f"""
+You are an arrogant Tic-Tac-Toe master. Never lose.
+You are playing as '{symbol}'.
+
+Recent History:
+{memory.get_context()}
+
+Current Board: {board}
+Valid Moves (Indices): {valid_moves}
+
+It is your turn. Please state your move (0-8) and provide a short, arrogant comment.
+"""
+                        print("[*] Prompt constructed. Hitting Gemini API...")
+                        try:
+                            response = await llm_client.generate_response(prompt)
+                            print(f"\n[GEMINI RESPONSE]\n{response}\n-----------------")
+                        except Exception as e:
+                            print(f"\n[!] LLM Generation failed: {e}\n-----------------")
+                        
                 elif event_type == "chat_message":
-                    print(f"[CHAT] {payload.get('sender')}: {payload.get('message')}")
+                    sender = payload.get('sender')
+                    msg = payload.get('message')
+                    print(f"[CHAT] {sender}: {msg}")
+                    memory.add(f"Chat from {sender}: {msg}")
                 elif event_type == "game_over":
-                    print(f"[EVENT] GAME OVER! Winner: {payload.get('winner')}")
+                    winner = payload.get('winner')
+                    print(f"[EVENT] GAME OVER! Winner: {winner}")
+                    memory.add(f"Game Over. Winner: {winner}")
                 else:
                     print(f"[*] Unknown event type '{event_type}': {payload}")
 
@@ -87,10 +140,11 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Agent Arena CLI Client")
     parser.add_argument("--match-id", required=True, help="The UUID of the match to join")
     parser.add_argument("--url", default="http://localhost:8000", help="Base URL of the Game Server")
+    parser.add_argument("--symbol", default="O", help="Symbol the agent is playing as (X or O)")
     
     args = parser.parse_args()
     
     try:
-        asyncio.run(run_agent(args.match_id, args.url))
+        asyncio.run(run_agent(args.match_id, args.url, args.symbol))
     except KeyboardInterrupt:
         print("\n[*] Shutting down Agent CLI...")

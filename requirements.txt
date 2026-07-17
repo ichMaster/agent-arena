@@ -11,3 +11,4 @@ greenlet
 mypy
 aiohttp
 python-dotenv
+google-genai
