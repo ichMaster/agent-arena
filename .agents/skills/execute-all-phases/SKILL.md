@@ -30,12 +30,13 @@ Read the `spec/implementation/vXX.YY-issues.md` file to identify the list of iss
 For each issue (e.g., `ARENA-xxx`) within the current phase:
 1. Implement the tasks described under `What needs to be done`.
 2. Run validation checks (e.g., `pytest` or Python scripts).
-3. If validation succeeds, stage and commit the changes:
+3. If validation succeeds, stage, commit, and push the changes:
    ```bash
    git add <modified_files>
    git commit -m "ARENA-xxx: <title>
    
    <Short summary of changes>"
+   git push origin Gemini-3.5Flash-dev
    ```
 4. If validation fails, revert changes (`git checkout -- .`) and ask the user how to proceed.
 
