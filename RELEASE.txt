@@ -1,3 +1,10 @@
+Version v04.01.00 (2026-07-18)
+---------------------------
+- Designed premium dark-mode Glassmorphism UI aesthetic using backdrop-filters and translucent panels.
+- Constructed semantic HTML5 layout separating Game Area and Chat Sidebar.
+- Scaffolod responsive CSS Grid for Tic-Tac-Toe board and Flexbox for message ledger.
+- Added drop-shadow neon accents for active human and agent game elements.
+
 Version v03.03.00 (2026-07-17)
 ---------------------------
 - Agent uses `google-genai` Structured Outputs (`response_schema`) to reliably extract JSON moves and comments.
