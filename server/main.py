@@ -7,7 +7,7 @@ from pydantic import BaseModel, ValidationError
 from server.database import async_session_maker
 from server.repository import ArenaRepository
 
-app = FastAPI(title="Agent Arena", version="02.01.00")
+app = FastAPI(title="Agent Arena", version="02.02.00")
 
 # Allow all origins for local development
 app.add_middleware(
