@@ -1,3 +1,9 @@
+Version v05.01.00 (2026-07-18)
+---------------------------
+- Engineered `AgentProfile` Pydantic class to standardize configuration schemas.
+- Implemented declarative YAML parsing with `PyYAML`.
+- Authored the first two dynamic AI personas (`aggressive_bot.yml` and `cowardly_bot.yml`) inside the new `profiles/` directory.
+
 Version v04.03.00 (2026-07-18)
 ---------------------------
 - Added dynamic Board Reactivity to visually parse `state_update` payloads into the DOM Grid.
