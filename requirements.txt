@@ -12,3 +12,4 @@ mypy
 aiohttp
 python-dotenv
 google-genai
+PyYAML==6.0.1
