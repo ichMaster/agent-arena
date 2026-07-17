@@ -17,7 +17,7 @@ class TicTacToe(GameInterface):
         return {
             "board": self.board,
             "current_turn": self.current_turn,
-            "status": self.is_game_over()
+            "status": self.is_game_over() or "ACTIVE"
         }
 
     def get_valid_moves(self) -> List[int]:
