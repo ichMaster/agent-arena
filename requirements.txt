@@ -5,3 +5,6 @@ websockets
 pytest
 sqlalchemy
 httpx2
+aiosqlite
+pytest-asyncio
+greenlet
