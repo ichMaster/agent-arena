@@ -1,5 +1,6 @@
 import pytest
 import pytest_asyncio
+from sqlalchemy.exc import IntegrityError
 from server.database import engine, Base, async_session_maker
 from server.repository import ArenaRepository
 from server.models import MatchStatus
@@ -49,3 +50,11 @@ async def test_repository_crud():
         chats = await repo.get_chat(match.id)
         assert len(chats) == 1
         assert chats[0].id == chat.id
+
+@pytest.mark.asyncio
+async def test_foreign_key_constraint():
+    async with async_session_maker() as session:
+        repo = ArenaRepository(session)
+        
+        with pytest.raises(IntegrityError):
+            await repo.log_move("fake-match-id", "player1", {})
