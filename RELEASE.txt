@@ -1,3 +1,10 @@
+Version v03.02.00 (2026-07-17)
+---------------------------
+- Integrated `google-genai` SDK and created `LLMClient` wrapper for `gemini-3.1-pro-preview`.
+- Added `MemoryWindow` to Agent CLI to track chat history and game events.
+- Implemented Prompt Builder with arrogant persona injection.
+- Agent successfully generates context-aware LLM responses when it is its turn.
+
 Version v03.01.00 (2026-07-17)
 ---------------------------
 - Added Agent CLI skeleton with `argparse` configuration.
