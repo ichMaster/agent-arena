@@ -21,20 +21,22 @@ async def test_connection_manager():
     # Test connect
     await manager.connect(ws1, "match1")
     assert ws1.accepted
-    assert len(manager.active_connections["match1"]) == 1
+    assert len(manager.matches["match1"].players) == 1
+    assert len(ws1.messages) == 1 # state_update
     
     await manager.connect(ws2, "match1")
-    assert len(manager.active_connections["match1"]) == 2
+    assert len(manager.matches["match1"].players) == 2
+    assert len(ws2.messages) == 1 # state_update
     
     # Test broadcast
     event = ServerPushEvent(event="chat", data={"message": "hello"})
     await manager.broadcast("match1", event)
-    assert len(ws1.messages) == 1
-    assert len(ws2.messages) == 1
+    assert len(ws1.messages) == 2
+    assert len(ws2.messages) == 2
     
     # Test disconnect
     manager.disconnect(ws1, "match1")
-    assert len(manager.active_connections["match1"]) == 1
+    assert len(manager.matches["match1"].players) == 1
     
     manager.disconnect(ws2, "match1")
-    assert "match1" not in manager.active_connections
+    assert "match1" not in manager.matches

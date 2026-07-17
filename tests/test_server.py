@@ -55,6 +55,10 @@ def test_websocket_chat_routing():
     match_id = match_resp.json()["match_id"]
     
     with client.websocket_connect(f"/ws/match/{match_id}?token={valid_token}") as websocket:
+        # Consume initial state_update
+        initial_state = websocket.receive_json()
+        assert initial_state["event"] == "state_update"
+        
         # Send a valid chat message
         websocket.send_json({
             "action": "chat_message",
@@ -86,6 +90,12 @@ def test_websocket_concurrent_clients():
     url2 = f"/ws/match/{match_id}?token={token2}"
     
     with client.websocket_connect(url1) as ws1, client.websocket_connect(url2) as ws2:
+        # Consume initial state updates
+        init1 = ws1.receive_json()
+        init2 = ws2.receive_json()
+        assert init1["event"] == "state_update"
+        assert init2["event"] == "state_update"
+        
         # Client 1 sends a message
         ws1.send_json({
             "action": "chat_message",
