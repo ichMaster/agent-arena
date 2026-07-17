@@ -1,3 +1,8 @@
+Version v02.01.00 (2026-07-17)
+---------------------------
+- Defined the strict abstract base class `GameInterface` for future engines.
+- Configured MyPy strict type validation for the `games/` module.
+
 Version v01.03.00 (2026-07-17)
 ---------------------------
 - docs: add test_client.html and update README with WS testing instructions
