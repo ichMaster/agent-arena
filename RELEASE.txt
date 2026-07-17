@@ -1,0 +1,8 @@
+Version v01.01.00 (2026-07-17)
+---------------------------
+- Defined Game Server modular architecture and phase-based roadmap specifications.
+- Configured autonomous IDE agent skills (generate, upload, execute, release).
+- Scaffolded FastAPI server skeleton with CORS and Health endpoint.
+- Implemented /api/v1/lobby/match for unique game generation.
+- Implemented /api/v1/lobby/join for issuing secure Auth Tokens to players.
+- Added foundational tests with pytest and locked dependencies.
