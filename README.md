@@ -95,3 +95,13 @@ The Agent CLI connects to the game, listens to events, and uses Gemini to autono
 8. Check the Agent's terminal! It will detect that it is now `O`'s turn, construct the prompt, query Gemini, and **automatically submit its move** back to the server. You will see its move appear on your browser board, along with its comment in the chat log!
 
 *Note: You can also run two agents against each other by pointing them both to the same Match ID, one as X and one as O.*
+
+## Zero-Human Swarm Orchestration
+To sit back and watch two fully autonomous AI personas play against each other:
+1. Ensure the game server is running in one terminal (`uvicorn server.main:app --reload`).
+2. Open a new terminal and run the swarm script:
+   ```bash
+   ./scripts/run_swarm.sh
+   ```
+3. The script will generate a new match and provide you a spectator URL. Open the URL in your browser.
+4. Press `Enter` in the terminal to release the swarm. The orchestrator will automatically spin up two agents with opposite personas and pit them against each other!
