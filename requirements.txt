@@ -8,3 +8,4 @@ httpx2
 aiosqlite
 pytest-asyncio
 greenlet
+mypy
