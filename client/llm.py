@@ -15,12 +15,13 @@ class LLMClient(ABC):
         pass
 
 class GeminiClient(LLMClient):
-    def __init__(self):
+    def __init__(self, model_id: str = "gemini-3.1-pro-preview", temperature: float = 0.7):
         api_key = os.getenv("GEMINI_API_KEY")
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing")
         self.client = genai.Client(api_key=api_key)
-        self.model_id = "gemini-3.1-pro-preview"
+        self.model_id = model_id
+        self.temperature = temperature
         
     async def generate_response(self, prompt: str) -> AgentResponse:
         # Since google-genai is mostly synchronous by default, we should ideally run it in a threadpool
@@ -32,6 +33,7 @@ class GeminiClient(LLMClient):
             model=self.model_id,
             contents=prompt,
             config=types.GenerateContentConfig(
+                temperature=self.temperature,
                 response_mime_type="application/json",
                 response_schema=AgentResponse,
             )

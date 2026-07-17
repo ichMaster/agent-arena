@@ -6,6 +6,7 @@ import json
 import websockets
 from dotenv import load_dotenv
 from client.llm import GeminiClient
+from client.profile import AgentProfile
 
 # Load environment variables
 load_dotenv()
@@ -24,11 +25,11 @@ class MemoryWindow:
         return "\n".join(self.history)
 
 
-async def get_auth_token(base_url: str, match_id: str) -> str:
+async def get_auth_token(base_url: str, match_id: str, player_name: str) -> str:
     join_url = f"{base_url}/api/v1/lobby/join"
     payload = {
         "match_id": match_id,
-        "player_name": "AI Agent"
+        "player_name": player_name
     }
     async with aiohttp.ClientSession() as session:
         async with session.post(join_url, json=payload) as response:
@@ -39,13 +40,14 @@ async def get_auth_token(base_url: str, match_id: str) -> str:
             data = await response.json()
             return data["token"]
 
-async def run_agent(match_id: str, server_url: str, symbol: str):
-    print(f"[*] Booting Agent CLI (Symbol: {symbol})")
+async def run_agent(match_id: str, server_url: str, symbol: str, profile_path: str):
+    profile = AgentProfile.load_from_yaml(profile_path)
+    print(f"[*] Booting Agent CLI (Profile: {profile.name}, Symbol: {symbol})")
     print(f"[*] Target Match ID: {match_id}")
     print(f"[*] Server URL: {server_url}")
     
-    memory = MemoryWindow()
-    llm_client = GeminiClient()
+    memory = MemoryWindow(limit=profile.memory_limit)
+    llm_client = GeminiClient(model_id=profile.model_type, temperature=profile.temperature)
 
     # Check for GEMINI_API_KEY as requested
     api_key = os.getenv("GEMINI_API_KEY")
@@ -56,7 +58,7 @@ async def run_agent(match_id: str, server_url: str, symbol: str):
 
     # 1. Fetch token
     try:
-        token = await get_auth_token(server_url, match_id)
+        token = await get_auth_token(server_url, match_id, profile.name)
         print(f"[+] Successfully fetched Auth Token: {token}")
     except Exception as e:
         print(f"[-] Error joining lobby: {e}")
@@ -101,7 +103,8 @@ async def run_agent(match_id: str, server_url: str, symbol: str):
                         valid_moves = [i for i, cell in enumerate(board) if cell is None]
                         
                         prompt = f"""
-You are an arrogant Tic-Tac-Toe master. Never lose.
+{profile.system_prompt.strip()}
+
 You are playing as '{symbol}'.
 
 Recent History:
@@ -110,7 +113,7 @@ Recent History:
 Current Board: {board}
 Valid Moves (Indices): {valid_moves}
 
-It is your turn. Please state your move (0-8) and provide a short, arrogant comment.
+It is your turn. Please state your move (0-8) and provide a short comment that fits your persona.
 """
                         print("[*] Prompt constructed. Hitting Gemini API...")
                         max_attempts = 3
@@ -149,8 +152,11 @@ It is your turn. Please state your move (0-8) and provide a short, arrogant comm
                         print("[*] Submitting payloads to server...")
                         if llm_comment:
                             chat_payload = {
-                                "action": "chat",
-                                "payload": {"message": llm_comment}
+                                "action": "chat_message",
+                                "payload": {
+                                    "sender": profile.name,
+                                    "message": llm_comment
+                                }
                             }
                             await websocket.send(json.dumps(chat_payload))
                             
@@ -183,10 +189,11 @@ if __name__ == "__main__":
     parser.add_argument("--match-id", required=True, help="The UUID of the match to join")
     parser.add_argument("--url", default="http://localhost:8000", help="Base URL of the Game Server")
     parser.add_argument("--symbol", default="O", help="Symbol the agent is playing as (X or O)")
+    parser.add_argument("--profile", required=True, help="Path to the YAML profile")
     
     args = parser.parse_args()
     
     try:
-        asyncio.run(run_agent(args.match_id, args.url, args.symbol))
+        asyncio.run(run_agent(args.match_id, args.url, args.symbol, args.profile))
     except KeyboardInterrupt:
         print("\n[*] Shutting down Agent CLI...")
