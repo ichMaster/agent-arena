@@ -3,30 +3,46 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Agent Arena - Chat Test</title>
+    <title>Agent Arena - Tic Tac Toe WS Test</title>
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0f172a; color: #f8fafc; padding: 2rem; }
         .container { max-width: 600px; margin: 0 auto; background: #1e293b; padding: 2rem; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
-        .log { background: #0f172a; padding: 1rem; border-radius: 8px; height: 300px; overflow-y: auto; font-family: monospace; margin-bottom: 1rem; }
-        input, button { padding: 0.5rem 1rem; border-radius: 6px; border: none; font-size: 1rem; }
-        input { background: #334155; color: white; width: 70%; margin-right: 10px; }
-        button { background: #3b82f6; color: white; cursor: pointer; font-weight: bold; }
-        button:hover { background: #2563eb; }
+        .log { background: #0f172a; padding: 1rem; border-radius: 8px; height: 150px; overflow-y: auto; font-family: monospace; margin-bottom: 1rem; font-size: 0.9em; }
+        button.btn { padding: 0.5rem 1rem; border-radius: 6px; border: none; font-size: 1rem; background: #3b82f6; color: white; cursor: pointer; font-weight: bold; margin-bottom: 10px; margin-right: 5px; }
+        button.btn:hover { background: #2563eb; }
         .msg { margin-bottom: 0.5rem; }
         .sender { color: #60a5fa; font-weight: bold; }
+        
+        .board { display: grid; grid-template-columns: repeat(3, 100px); grid-gap: 10px; margin-bottom: 20px; justify-content: center; }
+        .cell { width: 100px; height: 100px; background: #334155; display: flex; align-items: center; justify-content: center; font-size: 2.5rem; font-weight: bold; cursor: pointer; border-radius: 8px; }
+        .cell:hover { background: #475569; }
+        .cell.disabled { cursor: not-allowed; }
+        #status { text-align: center; font-size: 1.2rem; font-weight: bold; margin-bottom: 1rem; color: #38bdf8; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h2>Agent Arena 🤖 - Chat Test</h2>
-        <div style="margin-bottom: 1rem;">
-            <button id="connectBtn" onclick="startTest()">Connect to Match</button>
+        <h2>Agent Arena 🤖 - Tic-Tac-Toe</h2>
+        <div style="text-align: center;">
+            <button class="btn" id="hostBtn" onclick="hostMatch()">Host New Match</button>
+            <button class="btn" id="joinBtn" onclick="joinExistingMatch()">Join Match ID...</button>
         </div>
+        
+        <div id="status">Not Connected</div>
+
+        <div class="board" id="board">
+            <div class="cell disabled" onclick="submitMove(0)" id="cell-0"></div>
+            <div class="cell disabled" onclick="submitMove(1)" id="cell-1"></div>
+            <div class="cell disabled" onclick="submitMove(2)" id="cell-2"></div>
+            <div class="cell disabled" onclick="submitMove(3)" id="cell-3"></div>
+            <div class="cell disabled" onclick="submitMove(4)" id="cell-4"></div>
+            <div class="cell disabled" onclick="submitMove(5)" id="cell-5"></div>
+            <div class="cell disabled" onclick="submitMove(6)" id="cell-6"></div>
+            <div class="cell disabled" onclick="submitMove(7)" id="cell-7"></div>
+            <div class="cell disabled" onclick="submitMove(8)" id="cell-8"></div>
+        </div>
+
         <div class="log" id="log"></div>
-        <div style="display: flex;">
-            <input type="text" id="msgInput" placeholder="Type a message..." disabled onkeypress="if(event.key === 'Enter') sendMessage()">
-            <button id="sendBtn" onclick="sendMessage()" disabled>Send</button>
-        </div>
     </div>
 
     <script>
@@ -37,21 +53,39 @@
         function log(msg, sender="System") {
             const div = document.createElement('div');
             div.className = 'msg';
-            div.innerHTML = `<span class="sender">${sender}:</span> ${msg}`;
+            if (sender === "System") div.style.color = "#94a3b8";
+            else if (sender === "Error") div.style.color = "#ef4444";
+            div.innerHTML = `<span class="sender" style="${sender==='System'?'color:#94a3b8':(sender==='Error'?'color:#ef4444':'')}">${sender}:</span> ${msg}`;
             logEl.appendChild(div);
             logEl.scrollTop = logEl.scrollHeight;
         }
 
-        async function startTest() {
-            try {
-                // 1. Create Match
-                log("Creating new match...");
-                const matchResp = await fetch("http://localhost:8000/api/v1/lobby/match", { method: "POST" });
-                const matchData = await matchResp.json();
-                matchId = matchData.match_id;
-                log(`Match created: ${matchId}`);
+        function setStatus(text) {
+            document.getElementById('status').innerText = text;
+        }
 
-                // 2. Join Match (Get Token)
+        function enableBoard() {
+            for(let i=0; i<9; i++) {
+                document.getElementById(`cell-${i}`).classList.remove("disabled");
+            }
+        }
+
+        async function hostMatch() {
+            log("Creating new match...");
+            const matchResp = await fetch("http://localhost:8000/api/v1/lobby/match", { method: "POST" });
+            const matchData = await matchResp.json();
+            connectToMatch(matchData.match_id);
+        }
+
+        async function joinExistingMatch() {
+            const mid = prompt("Enter Match ID:");
+            if(mid) connectToMatch(mid);
+        }
+
+        async function connectToMatch(mid) {
+            matchId = mid;
+            log(`Joining match: ${matchId}`);
+            try {
                 const joinResp = await fetch("http://localhost:8000/api/v1/lobby/join", {
                     method: "POST",
                     headers: { "Content-Type": "application/json" },
@@ -59,47 +93,59 @@
                 });
                 const joinData = await joinResp.json();
                 const token = joinData.token;
-                log(`Joined lobby. Got WS token.`);
 
-                // 3. Connect WebSocket
-                log("Connecting WebSocket...");
                 ws = new WebSocket(`ws://localhost:8000/ws/match/${matchId}?token=${token}`);
                 
                 ws.onopen = () => {
                     log("WebSocket Connected! 🟢");
-                    document.getElementById('msgInput').disabled = false;
-                    document.getElementById('sendBtn').disabled = false;
-                    document.getElementById('connectBtn').disabled = true;
+                    enableBoard();
+                    document.getElementById('hostBtn').disabled = true;
+                    document.getElementById('joinBtn').disabled = true;
+                    setStatus("Waiting for initial state...");
                 };
 
                 ws.onmessage = (event) => {
                     const data = JSON.parse(event.data);
-                    if (data.event === "chat_message") {
-                        log(data.data.message, data.data.sender);
+                    
+                    if (data.error) {
+                        log(data.error, "Error");
+                        return;
+                    }
+
+                    if (data.event === "state_update") {
+                        const state = data.data;
+                        // Update board UI
+                        for(let i=0; i<9; i++) {
+                            document.getElementById(`cell-${i}`).innerText = state.board[i] || "";
+                        }
+                        setStatus(`Turn: ${state.current_turn} | Status: ${state.status}`);
+                        log(`State updated. Turn: ${state.current_turn}`);
+                    } 
+                    else if (data.event === "game_over") {
+                        const winner = data.data.winner;
+                        setStatus(`GAME OVER! ${winner === 'Draw' ? 'It was a Draw' : 'Winner: ' + winner}`);
+                        log(`Match Finished! Winner: ${winner}`);
                     }
                 };
 
-                ws.onclose = () => log("WebSocket Disconnected 🔴");
+                ws.onclose = () => {
+                    log("WebSocket Disconnected 🔴");
+                    setStatus("Disconnected");
+                };
 
             } catch (err) {
-                log(`Error: ${err.message}`);
+                log(`Error: ${err.message}`, "Error");
             }
         }
 
-        function sendMessage() {
-            const input = document.getElementById('msgInput');
-            if (!input.value || !ws) return;
+        function submitMove(idx) {
+            if (!ws || ws.readyState !== WebSocket.OPEN) return;
             
             const payload = {
-                action: "chat_message",
-                payload: {
-                    sender: "Human Player",
-                    message: input.value
-                }
+                action: "submit_move",
+                payload: { move: idx }
             };
-            
             ws.send(JSON.stringify(payload));
-            input.value = "";
         }
     </script>
 </body>
