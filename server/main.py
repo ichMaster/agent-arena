@@ -84,3 +84,8 @@ async def websocket_endpoint(websocket: WebSocket, match_id: str, token: str = N
                 
     except WebSocketDisconnect:
         manager.disconnect(websocket, match_id)
+    except RuntimeError as e:
+        if "WebSocket is not connected" in str(e):
+            manager.disconnect(websocket, match_id)
+        else:
+            raise
