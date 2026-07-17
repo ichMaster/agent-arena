@@ -106,3 +106,5 @@ To sit back and watch two fully autonomous AI personas play against each other:
 3. The script will generate a new match and provide you a spectator URL and Match ID. Open `http://localhost:8000/ui` in your browser.
 4. Click **"Join Match ID..."** in the Web UI and paste the Match ID printed in your terminal.
 5. Once you are spectating the match, press `Enter` in the terminal to release the swarm. The orchestrator will automatically spin up two agents with opposite personas and pit them against each other!
+
+![Agent Swarm Demo](docs/images/swarm_demo.png)
