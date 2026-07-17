@@ -1,3 +1,8 @@
+Version v05.03.00 (2026-07-18)
+---------------------------
+- Added `scripts/run_swarm.sh` orchestrator to launch fully autonomous AI vs AI matches.
+- Updated README with instructions for running the swarm and joining as a spectator.
+
 Version v05.02.00 (2026-07-18)
 ---------------------------
 - Refactored `agent.py` to completely decouple LLM logic from the Python codebase.
