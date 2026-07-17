@@ -77,6 +77,8 @@ async def websocket_endpoint(websocket: WebSocket, match_id: str, token: str = N
                         data={"sender": sender, "message": message}
                     )
                     await manager.broadcast(match_id, push_event)
+                elif payload.action == "submit_move":
+                    await manager.process_action(websocket, match_id, payload)
             except ValidationError:
                 await websocket.send_json({"error": "Invalid payload format"})
                 
