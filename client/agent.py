@@ -113,11 +113,53 @@ Valid Moves (Indices): {valid_moves}
 It is your turn. Please state your move (0-8) and provide a short, arrogant comment.
 """
                         print("[*] Prompt constructed. Hitting Gemini API...")
-                        try:
-                            response = await llm_client.generate_response(prompt)
-                            print(f"\n[GEMINI RESPONSE]\n{response}\n-----------------")
-                        except Exception as e:
-                            print(f"\n[!] LLM Generation failed: {e}\n-----------------")
+                        max_attempts = 3
+                        attempt = 0
+                        llm_move = None
+                        llm_comment = None
+                        
+                        while attempt < max_attempts:
+                            try:
+                                response = await llm_client.generate_response(prompt)
+                                move = response.move
+                                comment = response.comment
+                                print(f"\n[GEMINI RESPONSE]\nMove: {move}\nComment: {comment}\n-----------------")
+                                
+                                if move in valid_moves:
+                                    print(f"[+] Valid move chosen: {move}")
+                                    llm_move = move
+                                    llm_comment = comment
+                                    break
+                                else:
+                                    print(f"[-] Invalid move generated: {move}. Retrying...")
+                                    prompt += f"\nError: Move {move} is invalid. The valid moves are {valid_moves}. Try again."
+                            except Exception as e:
+                                print(f"[-] LLM Generation failed on attempt {attempt+1}: {e}")
+                            
+                            attempt += 1
+                            
+                        # If loop exhausted without valid move, pick random
+                        if llm_move is None:
+                            import random
+                            llm_move = random.choice(valid_moves)
+                            llm_comment = "I'm experiencing an anomaly, but this move will suffice."
+                            print(f"[!] Fallback to random move: {llm_move}")
+                            
+                        # Send Chat Comment
+                        print("[*] Submitting payloads to server...")
+                        if llm_comment:
+                            chat_payload = {
+                                "action": "chat",
+                                "payload": {"message": llm_comment}
+                            }
+                            await websocket.send(json.dumps(chat_payload))
+                            
+                        # Send Move
+                        move_payload = {
+                            "action": "submit_move",
+                            "payload": {"move": llm_move}
+                        }
+                        await websocket.send(json.dumps(move_payload))
                         
                 elif event_type == "chat_message":
                     sender = payload.get('sender')

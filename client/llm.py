@@ -1,11 +1,17 @@
 import os
 from abc import ABC, abstractmethod
+from pydantic import BaseModel
 from google import genai
+from google.genai import types
+
+class AgentResponse(BaseModel):
+    move: int
+    comment: str
 
 class LLMClient(ABC):
     @abstractmethod
-    async def generate_response(self, prompt: str) -> str:
-        """Asynchronously generates a text response from the LLM based on the prompt."""
+    async def generate_response(self, prompt: str) -> AgentResponse:
+        """Asynchronously generates a structured response from the LLM based on the prompt."""
         pass
 
 class GeminiClient(LLMClient):
@@ -16,7 +22,7 @@ class GeminiClient(LLMClient):
         self.client = genai.Client(api_key=api_key)
         self.model_id = "gemini-3.1-pro-preview"
         
-    async def generate_response(self, prompt: str) -> str:
+    async def generate_response(self, prompt: str) -> AgentResponse:
         # Since google-genai is mostly synchronous by default, we should ideally run it in a threadpool
         # if we strictly need non-blocking async, but they also have async support in some clients.
         # For simplicity with the standard SDK, we use asyncio.to_thread to make it non-blocking.
@@ -24,9 +30,13 @@ class GeminiClient(LLMClient):
         response = await asyncio.to_thread(
             self.client.models.generate_content,
             model=self.model_id,
-            contents=prompt
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=AgentResponse,
+            )
         )
-        return response.text
+        return AgentResponse.model_validate_json(response.text)
 
 async def _test():
     import dotenv
