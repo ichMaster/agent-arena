@@ -75,6 +75,35 @@ def test_websocket_chat_routing():
         err_response = websocket.receive_json()
         assert "error" in err_response
 
+def test_websocket_concurrent_clients():
+    match_resp = client.post("/api/v1/lobby/match")
+    match_id = match_resp.json()["match_id"]
+    
+    token1 = str(uuid.uuid4())
+    token2 = str(uuid.uuid4())
+    
+    url1 = f"/ws/match/{match_id}?token={token1}"
+    url2 = f"/ws/match/{match_id}?token={token2}"
+    
+    with client.websocket_connect(url1) as ws1, client.websocket_connect(url2) as ws2:
+        # Client 1 sends a message
+        ws1.send_json({
+            "action": "chat_message",
+            "payload": {"sender": "Client1", "message": "Hello Client2"}
+        })
+        
+        # Both should receive the broadcast
+        resp1 = ws1.receive_json()
+        resp2 = ws2.receive_json()
+        
+        assert resp1["event"] == "chat_message"
+        assert resp1["data"]["sender"] == "Client1"
+        assert resp1["data"]["message"] == "Hello Client2"
+        
+        assert resp2["event"] == "chat_message"
+        assert resp2["data"]["sender"] == "Client1"
+        assert resp2["data"]["message"] == "Hello Client2"
+
 def test_join_match():
     response = client.post("/api/v1/lobby/join", json={
         "match_id": "test-id",
