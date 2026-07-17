@@ -74,3 +74,22 @@ uvicorn server.main:app --reload
 5. To test multiplayer, open a *second tab* in your browser with `test_client.html`. 
 6. In the second tab, click **"Join Match ID..."** and paste the Match ID from the first tab's logs. You'll join as player **O**.
 7. Play the game! The server will enforce turns, broadcast the board state, and declare a winner when the game is over.
+
+## Testing the Agent CLI (Phase 3)
+
+The Agent CLI currently connects to the game, listens to events, and generates an LLM response using Gemini when it's its turn (the response is not yet submitted back to the game).
+
+1. Ensure your `.env` file has a valid `GEMINI_API_KEY`.
+2. Start the game server:
+   ```bash
+   PYTHONPATH=. uvicorn server.main:app --reload
+   ```
+3. Open `client/test_client.html` in your web browser.
+4. Click **Create Match** and then **Join Match**. You will be assigned the symbol `X`.
+5. Copy the **Match ID** from the UI.
+6. Open a new terminal instance and run the Agent CLI, passing it the Match ID and the symbol `O`:
+   ```bash
+   PYTHONPATH=. python client/agent.py --match-id <YOUR_MATCH_ID> --symbol O
+   ```
+7. Go back to your browser and click on the Tic-Tac-Toe board to make your first move as `X`.
+8. Check the Agent's terminal! It will detect that it is now `O`'s turn, construct the prompt, query Gemini, and print out its arrogant response.
