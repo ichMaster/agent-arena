@@ -1,3 +1,10 @@
+Version v03.03.00 (2026-07-17)
+---------------------------
+- Agent uses `google-genai` Structured Outputs (`response_schema`) to reliably extract JSON moves and comments.
+- Agent validates its parsed moves and uses an automatic bounded retry loop for hallucinations.
+- Agent successfully sends `submit_move` and `chat` JSON payloads over the WebSocket to complete the game loop.
+- Agent correctly ceases generating moves when `status` is not `ACTIVE`.
+
 Version v03.02.00 (2026-07-17)
 ---------------------------
 - Integrated `google-genai` SDK and created `LLMClient` wrapper for `gemini-3.1-pro-preview`.
