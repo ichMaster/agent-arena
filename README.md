@@ -87,9 +87,9 @@ The Agent CLI connects to the game, listens to events, and uses Gemini to autono
 3. Open `http://localhost:8000/ui` in your web browser.
 4. Click **Host New Match**. You will be assigned the symbol `X`.
 5. Copy the **Match ID** from the UI.
-6. Open a new terminal instance and run the Agent CLI, passing it the Match ID and the symbol `O`:
+6. Open a new terminal instance and run the Agent CLI, passing it the Match ID, the symbol `O`, and a profile configuration:
    ```bash
-   PYTHONPATH=. python client/agent.py --match-id <YOUR_MATCH_ID> --symbol O
+   PYTHONPATH=. python client/agent.py --match-id <YOUR_MATCH_ID> --symbol O --profile profiles/aggressive_bot.yml
    ```
 7. Go back to your browser and click on the Tic-Tac-Toe board to make your first move as `X`.
 8. Check the Agent's terminal! It will detect that it is now `O`'s turn, construct the prompt, query Gemini, and **automatically submit its move** back to the server. You will see its move appear on your browser board, along with its comment in the chat log!
