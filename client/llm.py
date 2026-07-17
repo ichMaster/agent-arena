@@ -14,7 +14,7 @@ class GeminiClient(LLMClient):
         if not api_key:
             raise ValueError("GEMINI_API_KEY environment variable is missing")
         self.client = genai.Client(api_key=api_key)
-        self.model_id = "gemini-3.1-pro"
+        self.model_id = "gemini-3.1-pro-preview"
         
     async def generate_response(self, prompt: str) -> str:
         # Since google-genai is mostly synchronous by default, we should ideally run it in a threadpool
