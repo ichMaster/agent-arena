@@ -4,6 +4,10 @@ const WS_BASE = "ws://127.0.0.1:8000";
 let ws = null;
 let currentMatchId = null;
 
+// Game State
+let currentTurn = null;
+let gameActive = false;
+
 // DOM Elements
 const hostBtn = document.getElementById('hostBtn');
 const joinBtn = document.getElementById('joinBtn');
@@ -11,14 +15,34 @@ const matchIdDisplay = document.getElementById('match-id-display');
 const connectionDot = document.getElementById('connection-dot');
 const statusText = document.getElementById('status-text');
 
+const cardX = document.getElementById('card-x');
+const cardO = document.getElementById('card-o');
+
+const chatInput = document.getElementById('chat-input');
+const sendBtn = document.getElementById('sendBtn');
+const logDiv = document.getElementById('log');
+
 // Bind buttons
 hostBtn.addEventListener('click', hostMatch);
 joinBtn.addEventListener('click', joinExistingMatch);
 
+// Bind chat
+sendBtn.addEventListener('click', sendChatMessage);
+chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') sendChatMessage();
+});
+
+// Bind board cells
+const cells = [];
+for (let i = 0; i < 9; i++) {
+    const cell = document.getElementById(`cell-${i}`);
+    cell.addEventListener('click', () => handleCellClick(i));
+    cells.push(cell);
+}
+
 /**
  * ARENA-028: Lobby HTTP Integration
  */
-
 async function hostMatch() {
     try {
         console.log("Creating new match...");
@@ -46,7 +70,6 @@ async function connectToMatch(mid) {
     console.log(`Joining match: ${mid}`);
     
     try {
-        // 1. Fetch Auth Token
         const joinResp = await fetch(`${API_BASE}/api/v1/lobby/join`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -61,9 +84,7 @@ async function connectToMatch(mid) {
         const joinData = await joinResp.json();
         const token = joinData.token;
         
-        // 2. Establish WebSocket (ARENA-029)
         establishWebSocket(mid, token);
-        
     } catch (err) {
         console.error(err);
         alert(`Error connecting to match: ${err.message}`);
@@ -74,7 +95,6 @@ async function connectToMatch(mid) {
 /**
  * ARENA-029: WebSocket Connection & Event Router
  */
-
 function establishWebSocket(mid, token) {
     if (ws) {
         ws.close();
@@ -89,9 +109,14 @@ function establishWebSocket(mid, token) {
         connectionDot.classList.add('connected');
         statusText.innerText = "Connected";
         
-        // Disable lobby buttons to prevent re-entry logic bugs for now
         hostBtn.disabled = true;
         joinBtn.disabled = true;
+        
+        // Enable Chat (ARENA-031)
+        chatInput.disabled = false;
+        sendBtn.disabled = false;
+        
+        renderSystemMessage("Connected to match server.");
     };
     
     ws.onclose = (event) => {
@@ -102,41 +127,163 @@ function establishWebSocket(mid, token) {
         
         hostBtn.disabled = false;
         joinBtn.disabled = false;
-    };
-    
-    ws.onerror = (error) => {
-        console.error("WebSocket Error:", error);
+        chatInput.disabled = true;
+        sendBtn.disabled = true;
+        gameActive = false;
+        
+        renderSystemMessage("Disconnected from server.");
     };
     
     ws.onmessage = (event) => {
         try {
             const payload = JSON.parse(event.data);
-            
-            // Handle raw error messages from server
             if (payload.error) {
                 console.error("Server Error:", payload.error);
                 return;
             }
             
-            // Route events
             switch(payload.event) {
                 case "state_update":
-                    console.log("[Event: state_update]", payload.data);
-                    // TODO: Reactively update board cells (v04.03)
+                    renderBoard(payload.data);
                     break;
                 case "game_over":
-                    console.log("[Event: game_over]", payload.data);
-                    // TODO: Show game over state (v04.03)
+                    handleGameOver(payload.data);
                     break;
                 case "chat_message":
-                    console.log("[Event: chat_message]", payload.data);
-                    // TODO: Render message in chat ledger (v04.03)
+                    renderChat(payload.data);
                     break;
-                default:
-                    console.log("Unknown event received:", payload);
             }
         } catch (e) {
-            console.error("Error parsing WebSocket message:", e, event.data);
+            console.error("Error parsing message:", e);
         }
     };
+}
+
+/**
+ * ARENA-030: Board Reactivity & Gameplay Controls
+ */
+function renderBoard(data) {
+    gameActive = data.status === "ACTIVE" || data.status === "PENDING" || data.status === null;
+    currentTurn = data.current_turn;
+    
+    // Update player cards
+    if (currentTurn === 'X') {
+        cardX.classList.add('active');
+        cardO.classList.remove('active');
+    } else if (currentTurn === 'O') {
+        cardO.classList.add('active');
+        cardX.classList.remove('active');
+    } else {
+        cardX.classList.remove('active');
+        cardO.classList.remove('active');
+    }
+    
+    // Update grid cells
+    if (data.board) {
+        for (let i = 0; i < 9; i++) {
+            const val = data.board[i];
+            const cell = cells[i];
+            
+            // Clear previous state
+            cell.innerText = "";
+            cell.classList.remove('x', 'o', 'disabled');
+            
+            if (val === 'X') {
+                cell.innerText = "X";
+                cell.classList.add('x', 'disabled');
+            } else if (val === 'O') {
+                cell.innerText = "O";
+                cell.classList.add('o', 'disabled');
+            } else {
+                // Empty cell
+                if (gameActive && currentTurn === 'X') {
+                    // Clickable for Human
+                    cell.classList.remove('disabled');
+                } else {
+                    cell.classList.add('disabled');
+                }
+            }
+        }
+    }
+}
+
+function handleCellClick(index) {
+    if (!gameActive) return;
+    if (currentTurn !== 'X') return; // Human is X
+    
+    const cell = cells[index];
+    if (cell.classList.contains('disabled')) return;
+    
+    // Send move to server
+    if (ws && ws.readyState === WebSocket.OPEN) {
+        const payload = {
+            action: "submit_move",
+            payload: { move: index }
+        };
+        ws.send(JSON.stringify(payload));
+    }
+}
+
+/**
+ * ARENA-031: Chat Interface & Game Over
+ */
+function sendChatMessage() {
+    const text = chatInput.value.trim();
+    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+    
+    const payload = {
+        action: "chat_message",
+        payload: { sender: "Human Player", message: text }
+    };
+    ws.send(JSON.stringify(payload));
+    chatInput.value = "";
+}
+
+function renderChat(data) {
+    const msgDiv = document.createElement('div');
+    msgDiv.classList.add('msg');
+    
+    if (data.sender === "Human Player") {
+        msgDiv.classList.add('user');
+        msgDiv.innerHTML = `<span class="sender">You:</span> ${data.message}`;
+    } else {
+        msgDiv.classList.add('agent');
+        msgDiv.innerHTML = `<span class="sender">${data.sender}:</span> ${data.message}`;
+    }
+    
+    logDiv.appendChild(msgDiv);
+    logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+function renderSystemMessage(text) {
+    const msgDiv = document.createElement('div');
+    msgDiv.classList.add('msg', 'system');
+    msgDiv.innerText = text;
+    logDiv.appendChild(msgDiv);
+    logDiv.scrollTop = logDiv.scrollHeight;
+}
+
+function handleGameOver(data) {
+    gameActive = false;
+    currentTurn = null;
+    
+    cardX.classList.remove('active');
+    cardO.classList.remove('active');
+    
+    // Disable all cells
+    cells.forEach(cell => cell.classList.add('disabled'));
+    
+    let endMessage = "";
+    if (data.winner === "X") {
+        endMessage = "Game Over! You won! 🎉";
+        statusText.innerText = "Winner: You";
+    } else if (data.winner === "O") {
+        endMessage = "Game Over! Agent won. 🤖";
+        statusText.innerText = "Winner: Agent";
+    } else {
+        endMessage = "Game Over! It's a draw. 🤝";
+        statusText.innerText = "Draw";
+    }
+    
+    renderSystemMessage(endMessage);
 }
