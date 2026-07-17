@@ -1,3 +1,11 @@
+Version v02.03.00 (2026-07-17)
+---------------------------
+- Integrated the Tic-Tac-Toe Game Engine with the WebSocket Connection Manager.
+- Server now validates `submit_move` payloads and strictly enforces turn logic.
+- Implemented robust `state_update` broadcasting and isolated `error` handling for out-of-turn play.
+- Emits `game_over` signals upon win/draw and elegantly handles socket teardown.
+- Upgraded the `test_client.html` with a clickable UI and multiplayer support for easy end-to-end testing.
+
 Version v02.02.00 (2026-07-17)
 ---------------------------
 - Created the Tic-Tac-Toe Engine logic in `games/tictactoe.py`.
