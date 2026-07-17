@@ -1,3 +1,10 @@
+Version v03.01.00 (2026-07-17)
+---------------------------
+- Added Agent CLI skeleton with `argparse` configuration.
+- Added automatic Lobby Token retrieval over HTTP using `aiohttp`.
+- Added resilient `websockets` loop to natively consume Match events in Python.
+- Configured `python-dotenv` for upcoming Agent credentials.
+
 Version v02.03.00 (2026-07-17)
 ---------------------------
 - Integrated the Tic-Tac-Toe Game Engine with the WebSocket Connection Manager.
