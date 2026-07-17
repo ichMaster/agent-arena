@@ -24,3 +24,14 @@ class MatchResponse(BaseModel):
 @app.post("/api/v1/lobby/match", response_model=MatchResponse)
 async def create_match():
     return MatchResponse(match_id=str(uuid.uuid4()))
+
+class JoinRequest(BaseModel):
+    match_id: str
+    player_name: str
+
+class JoinResponse(BaseModel):
+    token: str
+
+@app.post("/api/v1/lobby/join", response_model=JoinResponse)
+async def join_match(request: JoinRequest):
+    return JoinResponse(token=str(uuid.uuid4()))
