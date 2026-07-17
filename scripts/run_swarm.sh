@@ -26,13 +26,14 @@ echo "[+] Match created successfully!"
 echo "    -> Match ID: $MATCH_ID"
 echo ""
 echo "==========================================="
-echo " OPEN THIS URL TO SPECTATE:"
-echo " $SERVER_URL/ui"
-echo " (Join Match ID: $MATCH_ID)"
+echo " SPECTATOR INSTRUCTIONS:"
+echo " 1. Press Enter below to launch the bots FIRST."
+echo " 2. Once they start, open: $SERVER_URL/ui"
+echo " 3. Click 'Join Match ID' and paste: $MATCH_ID"
 echo "==========================================="
 echo ""
 
-read -p "Press Enter once you have the Web UI open to launch the Swarm..."
+read -p "Press Enter to release the Swarm (then join as a spectator)..."
 
 # Start Player X (Aggressive Bot)
 echo "[*] Launching Player X (Aggressive Bot)..."
