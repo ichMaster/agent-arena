@@ -4,7 +4,7 @@ import os
 import socket
 import threading
 import time
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 import httpx2
 import pytest
@@ -107,6 +107,47 @@ async def test_agent_session_ignores_events_before_symbol_is_known() -> None:
     # current_turn happens to be None (matching an unset symbol) — must not trigger a turn.
     await session.handle_event({"event": "state_update", "payload": {"current_turn": None}})
     assert called == []
+
+
+async def test_agent_session_records_chat_and_moves_into_memory() -> None:
+    session = AgentSession("Ada")
+    await session.handle_event({"event": "chat_message", "payload": {"sender": "Bob", "message": "gl hf"}})
+    await session.handle_event(
+        {
+            "event": "state_update",
+            "payload": {"board": ["X"] + [None] * 8, "current_turn": "O", "last_move": {"player": "X", "move": 0}},
+        }
+    )
+    lines = session.memory.as_lines()
+    assert "- [chat] Bob: gl hf" in lines
+    assert "- [move] Player X played cell 0" in lines
+
+
+async def test_agent_session_calls_llm_with_built_prompt_on_its_turn() -> None:
+    fake_llm = AsyncMock()
+    fake_llm.generate_response.return_value = "I shall take the center."
+    session = AgentSession("Ada", llm=fake_llm)
+    session.symbol = "X"
+
+    await session.handle_event(
+        {
+            "event": "state_update",
+            "payload": {"board": [None] * 9, "current_turn": "X", "valid_moves": list(range(9))},
+        }
+    )
+
+    fake_llm.generate_response.assert_awaited_once()
+    prompt = fake_llm.generate_response.await_args.args[0]
+    assert "arrogant Tic-Tac-Toe master" in prompt
+    assert "Valid moves: [0, 1, 2, 3, 4, 5, 6, 7, 8]" in prompt
+
+
+async def test_agent_session_without_llm_does_not_crash_on_its_turn() -> None:
+    session = AgentSession("Ada")  # llm=None, matching the pre-v03.02 default
+    session.symbol = "X"
+    await session.handle_event(
+        {"event": "state_update", "payload": {"board": [None] * 9, "current_turn": "X", "valid_moves": [0]}}
+    )
 
 
 def _free_port() -> int:
