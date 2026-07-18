@@ -1,3 +1,9 @@
+v01.02.00:
+- Added Async Database Engine (aiosqlite).
+- Defined Match, MoveLog, and ChatLog schemas.
+- Implemented Repository Pattern for DB.
+- Added database verification script and foreign key constraint tests.
+
 v01.01.00:
 - Added FastAPI skeleton and health probe.
 - Added lobby match generation endpoint.
