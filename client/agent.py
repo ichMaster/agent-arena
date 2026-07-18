@@ -5,6 +5,9 @@ import websockets
 import json
 import os
 import sys
+import random
+import os
+import sys
 from collections import deque
 from dotenv import load_dotenv
 from client.llm import GeminiClient
@@ -100,8 +103,23 @@ async def main():
                         )
                         print("[*] Hitting Gemini API for next move...")
                         try:
-                            response_text = await llm_client.generate_response(prompt)
-                            print(f"[GEMINI RESPONSE]\n{response_text}\n[/GEMINI RESPONSE]")
+                            for attempt in range(3):
+                                response_obj = await llm_client.generate_structured_response(prompt)
+                                print(f"[GEMINI RESPONSE]\nMove: {response_obj.move}, Comment: {response_obj.comment}\n[/GEMINI RESPONSE]")
+                                
+                                if response_obj.move in valid_moves:
+                                    await ws.send(json.dumps({"action": "chat", "payload": {"message": response_obj.comment}}))
+                                    await ws.send(json.dumps({"action": "submit_move", "payload": {"move": response_obj.move}}))
+                                    break
+                                else:
+                                    print(f"[!] Invalid move {response_obj.move} not in {valid_moves}. Retrying...")
+                                    prompt += f"\nError: Move {response_obj.move} is invalid. The valid moves are {valid_moves}. Try again."
+                            else:
+                                print("[!] Failed 3 times. Falling back to random move.")
+                                fallback_move = random.choice(valid_moves)
+                                await ws.send(json.dumps({"action": "chat", "payload": {"message": "I'm bored, taking a random spot."}}))
+                                await ws.send(json.dumps({"action": "submit_move", "payload": {"move": fallback_move}}))
+                                
                         except Exception as e:
                             print(f"[!] Error calling LLM: {e}")
                         

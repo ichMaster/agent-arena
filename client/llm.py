@@ -1,10 +1,20 @@
 import abc
 import os
 from google import genai
+from google.genai import types
+from pydantic import BaseModel
+
+class AgentResponse(BaseModel):
+    move: int
+    comment: str
 
 class LLMClient(abc.ABC):
     @abc.abstractmethod
     async def generate_response(self, prompt: str) -> str:
+        pass
+        
+    @abc.abstractmethod
+    async def generate_structured_response(self, prompt: str) -> AgentResponse:
         pass
 
 class GeminiClient(LLMClient):
@@ -14,12 +24,19 @@ class GeminiClient(LLMClient):
         self.model = "gemini-3.1-pro"
 
     async def generate_response(self, prompt: str) -> str:
-        # Assuming google-genai supports async natively in future or wrapping sync:
-        # For now, using standard sync generate_content via asyncio.to_thread if needed,
-        # or just async native if it supports it. We'll use async native if available,
-        # but standard python SDK usually uses `client.aio.models.generate_content`.
         response = await self.client.aio.models.generate_content(
             model=self.model,
             contents=prompt
         )
         return response.text
+
+    async def generate_structured_response(self, prompt: str) -> AgentResponse:
+        response = await self.client.aio.models.generate_content(
+            model=self.model,
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                response_schema=AgentResponse,
+            )
+        )
+        return AgentResponse.model_validate_json(response.text)

@@ -1,3 +1,8 @@
+v03.03.00:
+- Extracted LLM Structured Output using Pydantic and Google Gen AI API schemas.
+- Implemented move validation and retry loop to prevent AI hallucination.
+- Wired AI output to WebSocket submission.
+
 v03.02.00:
 - Added `google-genai` SDK and created `GeminiClient` implementing `LLMClient` interface.
 - Added `MemoryWindow` to `client/agent.py` to buffer recent WebSocket events.
