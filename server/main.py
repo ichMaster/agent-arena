@@ -48,7 +48,14 @@ async def create_match():
 
 @app.post("/api/v1/lobby/join", response_model=JoinResponse)
 async def join_match(request: JoinRequest):
-    # For now, generate a random temporary opaque Auth Token
+    async with async_session_maker() as session:
+        from server.models import MatchModel, MatchStatus
+        match = await session.get(MatchModel, request.match_id)
+        if not match:
+            match = MatchModel(id=request.match_id, status=MatchStatus.PENDING)
+            session.add(match)
+            await session.commit()
+            
     token = str(uuid.uuid4())
     return JoinResponse(token=token)
 
