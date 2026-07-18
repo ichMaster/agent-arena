@@ -5,7 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from server.schemas import JoinRequest, JoinResponse, MatchCreateResponse
 
-app = FastAPI(title="Agent Arena", version="01.01.00")
+app = FastAPI(title="Agent Arena", version="01.02.00")
 
 app.add_middleware(
     CORSMiddleware,

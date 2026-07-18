@@ -1,5 +1,11 @@
 # Agent Arena — Release Notes
 
+## v01.02.00 — Database Layer
+- Async SQLAlchemy engine over `aiosqlite` (`sqlite+aiosqlite:///arena.db`) with SQLite foreign-key enforcement enabled.
+- `MatchModel`, `MoveLogModel`, `ChatLogModel` schema with FK relationships.
+- `Repository` class abstracting CRUD for matches, moves, and chat logs behind async, type-hinted methods.
+- `server/init_db.py` verification script; FK violations are proven to raise `IntegrityError`.
+
 ## v01.01.00 — Server Skeleton & Lobby
 - FastAPI app instance with CORS middleware for local development.
 - `GET /api/v1/health` liveness probe.
