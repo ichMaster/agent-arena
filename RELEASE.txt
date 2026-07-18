@@ -1,5 +1,9 @@
 # Agent Arena — Release Notes
 
+## v02.01.00 — Game Interface
+- `games/interface.py`: abstract `GameInterface` (`get_state`, `get_valid_moves`, `apply_move`, `is_game_over`), fully decoupled from FastAPI/WebSocket/DB — cannot be instantiated directly.
+- `mypy.ini` enforces strict typing on `games/*`; `requirements-dev.txt` adds `mypy` for local/CI checks.
+
 ## v01.03.00 — WebSocket Connection Manager
 - `ClientActionPayload`/`ServerPushEvent` Pydantic schemas and a `ConnectionManager` singleton (`match_id -> [WebSocket]`).
 - `POST /lobby/join` now issues real, validated tokens (in-memory store keyed by `match_id`); `/ws/match/{match_id}` accepts only a correct token for that specific match, closing pre-`accept()` (code 4001) otherwise.
