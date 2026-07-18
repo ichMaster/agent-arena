@@ -10,3 +10,4 @@ aiosqlite
 pytest-asyncio
 greenlet
 mypy
+python-dotenv

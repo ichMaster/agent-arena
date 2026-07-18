@@ -1,3 +1,8 @@
+v03.01.00:
+- Added `client/agent.py` CLI script.
+- Added Lobby HTTP integration for Auth Tokens.
+- Added WebSocket connection loop and event parsing.
+
 v02.03.00:
 - Added `ActiveMatch` to WebSocket `ConnectionManager`.
 - Wired `TicTacToe` into WebSocket loop.
