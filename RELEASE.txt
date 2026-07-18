@@ -1,5 +1,9 @@
 # Agent Arena — Release Notes
 
+## v05.01.00 — Designer Schemas
+- `client/profile.py`: `AgentProfile` Pydantic schema (`name`, `model_type`, `temperature`, `system_prompt`, `memory_limit`) with `load_from_yaml`.
+- `profiles/aggressive_bot.yml` and `profiles/cowardly_bot.yml` — two distinct sample personas.
+
 ## v04.03.00 — Reactive DOM & Chat
 - `renderBoard` writes each cell's mark/glow class and toggles player-card `.active` state from `current_turn` vs the locally-learned `mySymbol`; cells are only clickable when it's genuinely this client's turn on an empty, valid cell. `handleCellClick` sends `submit_move`.
 - `renderChat`/`addMessage` append styled, safely-escaped chat bubbles (system/user/agent) via DOM methods, not `innerHTML`. Chat input enables on connect. `handleGameOver` freezes the board and surfaces the win/draw result.
