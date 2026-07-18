@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 
-from client.llm import GEMINI_MODEL, GeminiClient, LLMClient
+from client.llm import GEMINI_MODEL, GeminiClient, LLMClient, create_llm_client
 
 
 def test_llm_client_cannot_be_instantiated_directly() -> None:
@@ -42,3 +42,23 @@ async def test_gemini_client_never_calls_real_api() -> None:
     with patch("client.llm.genai.Client") as fake_client_cls:
         GeminiClient(api_key="test-key")
     fake_client_cls.assert_called_once_with(api_key="test-key")
+
+
+def test_create_llm_client_selects_gemini_for_gemini_model_types() -> None:
+    with patch("client.llm.genai.Client"):
+        client = create_llm_client("gemini-3.1-pro", api_key="test-key", temperature=0.5)
+    assert isinstance(client, GeminiClient)
+
+
+def test_create_llm_client_is_case_insensitive() -> None:
+    with patch("client.llm.genai.Client"):
+        client = create_llm_client("Gemini-1.5-Flash", api_key="test-key", temperature=0.5)
+    assert isinstance(client, GeminiClient)
+
+
+def test_create_llm_client_rejects_unsupported_vendors() -> None:
+    """AgentProfile.model_type must actually drive vendor selection — this
+    would previously never be checked at all, since agent code hardcoded
+    GeminiClient regardless of what a profile's model_type said."""
+    with pytest.raises(ValueError, match="claude-3-opus"):
+        create_llm_client("claude-3-opus", api_key="test-key", temperature=0.5)

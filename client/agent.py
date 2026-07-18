@@ -23,7 +23,7 @@ from dotenv import load_dotenv
 
 from pydantic import ValidationError
 
-from client.llm import GeminiClient, LLMClient
+from client.llm import LLMClient, create_llm_client
 from client.memory import MemoryWindow
 from client.profile import AgentProfile
 from client.prompt import SYSTEM_PERSONA, build_prompt
@@ -228,7 +228,7 @@ async def run(args: argparse.Namespace, api_key: str) -> None:
 
     session = AgentSession(
         player_name,
-        llm=GeminiClient(api_key=api_key, temperature=profile.temperature),
+        llm=create_llm_client(profile.model_type, api_key, profile.temperature),
         memory_limit=profile.memory_limit,
         persona=profile.system_prompt,
         expected_symbol=args.symbol,

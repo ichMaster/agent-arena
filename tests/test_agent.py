@@ -126,12 +126,12 @@ async def test_run_loads_profile_and_wires_agent_session() -> None:
     with (
         patch("client.agent.join_match", new=AsyncMock(return_value="tok-123")) as fake_join,
         patch("client.agent.run_event_loop", new=fake_run_event_loop),
-        patch("client.agent.GeminiClient") as fake_gemini_cls,
+        patch("client.agent.create_llm_client") as fake_create_llm_client,
     ):
         await run(args, api_key="fake-key")
 
     fake_join.assert_awaited_once_with(args.server_url, "match-1", "Aggressor-Prime")
-    fake_gemini_cls.assert_called_once_with(api_key="fake-key", temperature=1.1)
+    fake_create_llm_client.assert_called_once_with("gemini-3.1-pro", "fake-key", 1.1)
 
     session = captured["session"]
     assert session.player_name == "Aggressor-Prime"
@@ -159,7 +159,7 @@ async def test_run_lets_player_name_override_profile_name() -> None:
     with (
         patch("client.agent.join_match", new=AsyncMock(return_value="tok-123")) as fake_join,
         patch("client.agent.run_event_loop", new=fake_run_event_loop),
-        patch("client.agent.GeminiClient"),
+        patch("client.agent.create_llm_client"),
     ):
         await run(args, api_key="fake-key")
 

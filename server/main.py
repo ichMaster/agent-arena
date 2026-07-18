@@ -64,7 +64,7 @@ async def join_match(request: JoinRequest) -> JoinResponse:
 async def match_socket(websocket: WebSocket, match_id: str) -> None:
     token = websocket.query_params.get("token")
     issued = auth.validate_token(token, match_id) if token else None
-    if issued is None:
+    if token is None or issued is None:
         await websocket.close(code=TOKEN_MISSING_OR_INVALID)
         return
 
