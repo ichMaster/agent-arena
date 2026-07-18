@@ -1,3 +1,7 @@
+v02.01.00:
+- Added `games/interface.py` with `GameInterface`.
+- Configured MyPy for strict typing in `games/`.
+
 v01.03.00:
 - Added WebSocket Schemas and ConnectionManager.
 - Implemented `/ws/match/{match_id}` endpoint with Auth Handshake.

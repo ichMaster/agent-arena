@@ -8,3 +8,5 @@ httpx
 requests
 aiosqlite
 pytest-asyncio
+greenlet
+mypy
