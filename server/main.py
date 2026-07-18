@@ -53,12 +53,34 @@ async def websocket_endpoint(websocket: WebSocket, match_id: str, token: str = N
     await manager.connect(websocket, match_id)
     try:
         while True:
-            data = await websocket.receive_json()
+            try:
+                data = await websocket.receive_json()
+            except Exception:
+                break
             try:
                 payload = ClientActionPayload(**data)
                 if payload.action == "chat":
                     msg = ServerPushEvent(event_type="chat", data=payload.payload)
                     await manager.broadcast(msg, match_id)
+                elif payload.action == "submit_move":
+                    match_obj = manager.active_matches.get(match_id)
+                    if match_obj:
+                        symbol = match_obj.player_symbols.get(websocket)
+                        move = payload.payload.get("move")
+                        if match_obj.game.apply_move(symbol, move): # type: ignore
+                            state = match_obj.game.get_state()
+                            await manager.broadcast(ServerPushEvent(event_type="state_update", data=state), match_id)
+                            winner = match_obj.game.is_game_over()
+                            if winner:
+                                await manager.broadcast(ServerPushEvent(event_type="game_over", data={"winner": winner}), match_id)
+                                for conn in list(manager.active_connections[match_id]):
+                                    try:
+                                        await conn.close(code=1000)
+                                    except Exception:
+                                        pass
+                                manager.active_connections[match_id].clear()
+                        else:
+                            await websocket.send_json(ServerPushEvent(event_type="error", data={"message": "invalid move"}).model_dump())
             except Exception:
                 await websocket.send_json({"error": "invalid payload"})
     except WebSocketDisconnect:

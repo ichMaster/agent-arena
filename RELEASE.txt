@@ -1,3 +1,8 @@
+v02.03.00:
+- Added `ActiveMatch` to WebSocket `ConnectionManager`.
+- Wired `TicTacToe` into WebSocket loop.
+- Added E2E tests for Match Lifecycle in `test_match_lifecycle.py`.
+
 v02.02.00:
 - Built Tic-Tac-Toe Engine implementing GameInterface.
 - Wrote rigorous tests covering winning permutations and out-of-bounds states.
