@@ -1,3 +1,7 @@
+v05.03.00:
+- Added `scripts/run_swarm.sh` orchestrator to automatically generate an AI vs AI match.
+- Shell script uses `curl` to dynamically allocate a Match ID and provisions two background instances of the Agent CLI loaded with distinct profiles.
+
 v05.02.00:
 - Updated `client/agent.py` to parse `--profile` and load `.yml` configs at runtime.
 - Passed down profile settings (temperature, name, memory limit, system prompt) dynamically.
