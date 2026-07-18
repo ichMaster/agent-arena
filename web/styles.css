@@ -1,20 +1,36 @@
 :root {
     --bg-color: #0f172a; /* Slate 900 */
+    --bg-gradient-start: #1e293b; /* Slate 800 */
     --glass-bg: rgba(30, 41, 59, 0.7); /* Slate 800 */
     --glass-border: rgba(255, 255, 255, 0.1);
-    --accent-primary: #3b82f6; /* Blue 500 */
+    --glass-panel-inset: rgba(255, 255, 255, 0.03);
+    --glass-panel-inset-strong: rgba(255, 255, 255, 0.05);
+    --glass-panel-inset-hover: rgba(255, 255, 255, 0.08);
+
+    --accent-primary: #3b82f6; /* Blue 500 — human/X */
+    --accent-primary-hover: #2563eb; /* Blue 600 */
     --accent-glow: rgba(59, 130, 246, 0.5);
-    --agent-color: #ec4899; /* Pink 500 */
+
+    --agent-color: #ec4899; /* Pink 500 — agent/O */
+    --agent-glow: rgba(236, 72, 153, 0.5);
+    --agent-tint: rgba(236, 72, 153, 0.1);
+    --agent-tint-border: rgba(236, 72, 153, 0.2);
+
+    --success-color: #10b981; /* Emerald 500 — connected */
+    --danger-color: #ef4444; /* Red 500 — disconnected */
+
     --text-main: #f8fafc;
     --text-muted: #94a3b8;
+    --input-bg: rgba(0, 0, 0, 0.2);
+    --font-family: 'Inter', sans-serif;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 body {
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-family);
     background-color: var(--bg-color);
-    background-image: radial-gradient(circle at 50% 0%, #1e293b 0%, #0f172a 70%);
+    background-image: radial-gradient(circle at 50% 0%, var(--bg-gradient-start) 0%, var(--bg-color) 70%);
     color: var(--text-main);
     min-height: 100vh;
     display: flex;
@@ -81,15 +97,15 @@ body {
 
 .status-dot {
     width: 8px; height: 8px;
-    background-color: #ef4444; /* Red — disconnected by default */
+    background-color: var(--danger-color); /* disconnected by default */
     border-radius: 50%;
-    box-shadow: 0 0 10px #ef4444;
+    box-shadow: 0 0 10px var(--danger-color);
     transition: background-color 0.3s, box-shadow 0.3s;
 }
 
 .status-dot.connected {
-    background-color: #10b981; /* Green */
-    box-shadow: 0 0 10px #10b981;
+    background-color: var(--success-color);
+    box-shadow: 0 0 10px var(--success-color);
 }
 
 /* Tic Tac Toe Board */
@@ -102,7 +118,7 @@ body {
 }
 
 .cell {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--glass-panel-inset);
     border: 1px solid var(--glass-border);
     border-radius: 16px;
     display: flex;
@@ -115,7 +131,7 @@ body {
 }
 
 .cell:hover {
-    background: rgba(255, 255, 255, 0.08);
+    background: var(--glass-panel-inset-hover);
     transform: translateY(-2px);
     box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 0 20px var(--accent-glow);
     border-color: var(--accent-primary);
@@ -127,14 +143,14 @@ body {
     cursor: default;
 }
 .cell.disabled:hover {
-    background: rgba(255, 255, 255, 0.03);
+    background: var(--glass-panel-inset);
     transform: none;
     box-shadow: none;
     border-color: var(--glass-border);
 }
 
 .cell.x { color: var(--accent-primary); text-shadow: 0 0 20px var(--accent-glow); }
-.cell.o { color: var(--agent-color); text-shadow: 0 0 20px rgba(236, 72, 153, 0.5); }
+.cell.o { color: var(--agent-color); text-shadow: 0 0 20px var(--agent-glow); }
 
 /* Chat Area */
 .chat-area {
@@ -189,7 +205,7 @@ body {
 
 .msg.system {
     align-self: center;
-    background: rgba(255,255,255,0.05);
+    background: var(--glass-panel-inset-strong);
     color: var(--text-muted);
     font-size: 0.8rem;
     border-radius: 8px;
@@ -197,8 +213,8 @@ body {
 
 .msg.agent {
     align-self: flex-start;
-    background: rgba(236, 72, 153, 0.1);
-    border: 1px solid rgba(236, 72, 153, 0.2);
+    background: var(--agent-tint);
+    border: 1px solid var(--agent-tint-border);
     border-bottom-left-radius: 4px;
 }
 .msg.agent .name {
@@ -228,12 +244,12 @@ body {
 
 .chat-input input {
     flex: 1;
-    background: rgba(0,0,0,0.2);
+    background: var(--input-bg);
     border: 1px solid var(--glass-border);
     padding: 1rem 1.2rem;
     border-radius: 12px;
     color: var(--text-main);
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-family);
     font-size: 0.9rem;
     transition: all 0.2s;
     outline: none;
@@ -262,7 +278,7 @@ body {
 }
 
 .chat-input button:hover:not(:disabled) {
-    background: #2563eb;
+    background: var(--accent-primary-hover);
     box-shadow: 0 0 15px var(--accent-glow);
 }
 
@@ -274,7 +290,7 @@ body {
     gap: 2rem;
 }
 .player-card {
-    background: rgba(255,255,255,0.03);
+    background: var(--glass-panel-inset);
     border: 1px solid var(--glass-border);
     padding: 0.5rem 1rem;
     border-radius: 12px;
@@ -302,12 +318,12 @@ body {
     gap: 0.75rem;
 }
 .lobby-controls button {
-    background: rgba(255,255,255,0.05);
+    background: var(--glass-panel-inset-strong);
     border: 1px solid var(--glass-border);
     color: var(--text-main);
     padding: 0.5rem 1rem;
     border-radius: 10px;
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-family);
     font-size: 0.85rem;
     cursor: pointer;
     transition: all 0.2s;
