@@ -1,8 +1,10 @@
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 import uuid
-from server.websockets import manager
+from server.websockets import manager, ClientActionPayload, ServerPushEvent
+from server.database import async_session_maker
+from server.repository import ArenaRepository
 
 app = FastAPI(title="Agent Arena", version="01.02.00")
 
@@ -55,7 +57,25 @@ async def websocket_endpoint(websocket: WebSocket, match_id: str, token: str = N
     await manager.connect(websocket, match_id)
     try:
         while True:
-            # For now, just keep the connection open and discard received packets
-            await websocket.receive_text()
+            data = await websocket.receive_json()
+            try:
+                payload = ClientActionPayload(**data)
+                if payload.action == "chat_message":
+                    sender = payload.payload.get("sender", "Unknown")
+                    message = payload.payload.get("message", "")
+                    
+                    # Persist to Database
+                    async with async_session_maker() as session:
+                        repo = ArenaRepository(session)
+                        await repo.log_chat(match_id, sender, message)
+                    
+                    # Broadcast
+                    push_event = ServerPushEvent(
+                        event="chat_message",
+                        data={"sender": sender, "message": message}
+                    )
+                    await manager.broadcast(match_id, push_event)
+            except ValidationError:
+                await websocket.send_json({"error": "Invalid payload format"})
     except WebSocketDisconnect:
         manager.disconnect(websocket, match_id)
