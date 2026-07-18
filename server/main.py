@@ -9,7 +9,7 @@ from server.repository import ArenaRepository
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Agent Arena", version="05.02.00")
+app = FastAPI(title="Agent Arena", version="05.03.00")
 
 # Allow all origins for local development
 app.add_middleware(
