@@ -1,8 +1,10 @@
 import uuid
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 from starlette.websockets import WebSocketState
 
 from server import auth
@@ -29,6 +31,9 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+WEB_DIR = Path(__file__).resolve().parent.parent / "web"
+app.mount("/ui", StaticFiles(directory=WEB_DIR, html=True), name="ui")
 
 
 @app.get("/api/v1/health")
