@@ -175,6 +175,19 @@ body {
     border-color: var(--accent-primary);
 }
 
+.cell.disabled {
+    pointer-events: none;
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.cell.disabled:hover {
+    background: rgba(255, 255, 255, 0.03);
+    transform: none;
+    box-shadow: none;
+    border-color: var(--glass-border);
+}
+
 .cell.x {
     color: var(--accent-primary);
     text-shadow: 0 0 20px var(--accent-glow);

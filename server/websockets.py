@@ -45,6 +45,7 @@ class ConnectionManager:
         
         # Send initial state update to the connecting client
         state = self.matches[match_id].game.get_state()
+        state["assigned_symbol"] = self.matches[match_id].player_map.get(websocket, "Spectator")
         push_event = ServerPushEvent(event="state_update", data=state)
         await websocket.send_json(push_event.model_dump())
 

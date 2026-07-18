@@ -1,6 +1,10 @@
 let ws = null;
 let currentMatchId = null;
 let currentToken = null;
+let assignedSymbol = null; // 'X' or 'O' or 'Spectator'
+let currentTurn = null; // 'X' or 'O'
+let isGameActive = false;
+let currentPlayerName = "Player";
 
 // DOM Elements
 const hostBtn = document.getElementById("hostBtn");
@@ -9,6 +13,18 @@ const connectionDot = document.getElementById("connection-dot");
 const statusText = document.getElementById("status-text");
 const matchIdDisplay = document.getElementById("match-id-display");
 const chatMessages = document.getElementById("chat-messages");
+const chatInput = document.getElementById("chat-input");
+const sendBtn = document.getElementById("sendBtn");
+const cardX = document.getElementById("card-x");
+const cardO = document.getElementById("card-o");
+
+// Setup Cell click listeners
+const cells = [];
+for (let i = 0; i < 9; i++) {
+    const cell = document.getElementById(`cell-${i}`);
+    cells.push(cell);
+    cell.addEventListener("click", () => handleCellClick(i));
+}
 
 // Lobby Functions
 async function hostMatch() {
@@ -26,7 +42,8 @@ async function hostMatch() {
         const data = await response.json();
         const matchId = data.match_id;
         addSystemMessage(`Hosted match: ${matchId}`);
-        await joinMatch(matchId, "Player 1");
+        currentPlayerName = "Host_Human";
+        await joinMatch(matchId, currentPlayerName);
     } catch (err) {
         addSystemMessage(`Host Error: ${err.message}`);
     }
@@ -37,7 +54,8 @@ async function joinMatchPrompt() {
     if (matchId) {
         const cleanMatchId = matchId.trim();
         if (cleanMatchId) {
-            await joinMatch(cleanMatchId, "Player 2");
+            currentPlayerName = "Joiner_Human";
+            await joinMatch(cleanMatchId, currentPlayerName);
         }
     }
 }
@@ -91,12 +109,23 @@ function connectWebSocket(matchId, token) {
         connectionDot.className = "status-dot connected";
         statusText.textContent = "Server Connected";
         addSystemMessage("Server connection active!");
+        
+        // Enable chat input
+        chatInput.removeAttribute("disabled");
+        sendBtn.removeAttribute("disabled");
     };
     
     ws.onclose = (event) => {
         connectionDot.className = "status-dot disconnected";
         statusText.textContent = "Disconnected";
         addSystemMessage(`Connection closed (code: ${event.code})`);
+        
+        // Disable chat input
+        chatInput.setAttribute("disabled", "true");
+        sendBtn.setAttribute("disabled", "true");
+        
+        isGameActive = false;
+        updateControlsState();
     };
     
     ws.onerror = (err) => {
@@ -127,18 +156,127 @@ function handleServerEvent(data) {
     
     switch (event) {
         case "state_update":
-            addSystemMessage(`State Update received: board -> [${eventData.board.map(v => v || '-').join(', ')}]`);
+            if (eventData.assigned_symbol) {
+                assignedSymbol = eventData.assigned_symbol;
+                addSystemMessage(`You are registered as player: ${assignedSymbol}`);
+            }
+            currentTurn = eventData.current_turn;
+            isGameActive = eventData.status === "ACTIVE";
+            
+            renderBoard(eventData.board);
+            renderTurnIndicators();
+            updateControlsState();
             break;
+            
         case "chat_message":
             addChatMessage(eventData.sender, eventData.message);
             break;
+            
         case "game_over":
+            isGameActive = false;
             addSystemMessage(`Game Over! Winner: ${eventData.winner}`);
+            statusText.textContent = `Game Over: Winner ${eventData.winner}`;
+            updateControlsState();
             break;
+            
         default:
             console.warn("Unhandled server event:", event);
     }
 }
+
+// Render game state
+function renderBoard(board) {
+    for (let i = 0; i < 9; i++) {
+        const cellVal = board[i]; // 'X', 'O', or null
+        const cellEl = cells[i];
+        
+        // Reset classes
+        cellEl.className = "cell";
+        
+        if (cellVal === "X") {
+            cellEl.textContent = "X";
+            cellEl.classList.add("x");
+        } else if (cellVal === "O") {
+            cellEl.textContent = "O";
+            cellEl.classList.add("o");
+        } else {
+            cellEl.textContent = "";
+        }
+    }
+}
+
+function renderTurnIndicators() {
+    cardX.classList.remove("active");
+    cardO.classList.remove("active");
+    
+    if (currentTurn === "X") {
+        cardX.classList.add("active");
+    } else if (currentTurn === "O") {
+        cardO.classList.add("active");
+    }
+}
+
+function updateControlsState() {
+    // A cell is playable if the game is active, it's our turn, and cell is empty
+    const ourTurn = (assignedSymbol === currentTurn);
+    
+    for (let i = 0; i < 9; i++) {
+        const cellEl = cells[i];
+        const isEmpty = (cellEl.textContent === "");
+        
+        if (isGameActive && ourTurn && isEmpty) {
+            cellEl.classList.remove("disabled");
+        } else {
+            cellEl.classList.add("disabled");
+        }
+    }
+}
+
+// Handle client inputs
+function handleCellClick(index) {
+    if (!isGameActive) return;
+    if (assignedSymbol !== currentTurn) {
+        addSystemMessage("It is not your turn!");
+        return;
+    }
+    if (cells[index].textContent !== "") {
+        addSystemMessage("Cell is already occupied!");
+        return;
+    }
+    
+    // Send move
+    const movePayload = {
+        action: "submit_move",
+        payload: {
+            move: index
+        }
+    };
+    ws.send(JSON.stringify(movePayload));
+}
+
+function sendChatMessage() {
+    const text = chatInput.value.trim();
+    if (!text) return;
+    if (!ws || ws.readyState !== WebSocket.OPEN) return;
+    
+    const chatPayload = {
+        action: "chat_message",
+        payload: {
+            sender: currentPlayerName,
+            message: text
+        }
+    };
+    ws.send(JSON.stringify(chatPayload));
+    chatInput.value = "";
+}
+
+// Chat input listeners
+sendBtn.addEventListener("click", sendChatMessage);
+chatInput.addEventListener("keypress", (e) => {
+    if (e.key === "Enter") {
+        sendChatMessage();
+    }
+});
 
 // Helpers to append elements to messaging panel
 function addSystemMessage(text) {
@@ -163,6 +301,6 @@ function addChatMessage(sender, text) {
     chatMessages.scrollTop = chatMessages.scrollHeight;
 }
 
-// Event listeners
+// Event listeners for Lobby controls
 hostBtn.addEventListener("click", hostMatch);
 joinBtn.addEventListener("click", joinMatchPrompt);
