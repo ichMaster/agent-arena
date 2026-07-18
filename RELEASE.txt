@@ -1,3 +1,11 @@
+Version v01.03.00 (2026-07-18)
+---------------------------
+- Defined Pydantic schemas for WS client actions and server broadcast events.
+- Created ConnectionManager tracking active WebSockets per match.
+- Built /ws/match/{match_id} endpoint verifying query string auth token format.
+- Implemented persistent event routing loop validating chat actions, logging them to the DB, and broadcasting updates.
+- Wrote concurrent WebSocket integration tests simulating multi-client sessions using uvicorn server background thread.
+
 Version v01.02.00 (2026-07-18)
 ---------------------------
 - Integrated async SQLite database connection using SQLAlchemy and aiosqlite.
