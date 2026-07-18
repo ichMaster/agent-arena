@@ -238,6 +238,16 @@ async def run(args: argparse.Namespace, api_key: str) -> None:
 
 
 def main() -> None:
+    # Line-buffer stdout/stderr explicitly. When stdout is redirected to a
+    # file/pipe rather than a TTY (e.g. the swarm script's `>log 2>&1`),
+    # Python block-buffers it by default — while stderr stays unbuffered —
+    # so a status print like "Joined as 'O'..." can sit unflushed in memory
+    # for a long time. That broke both the swarm script's connection-wait
+    # (grepping the log for that exact line) and its final `tail -f` (nothing
+    # to tail until the buffer happens to fill or the process exits).
+    sys.stdout.reconfigure(line_buffering=True)
+    sys.stderr.reconfigure(line_buffering=True)
+
     api_key = require_gemini_api_key()
     args = parse_args()
     asyncio.run(run(args, api_key))

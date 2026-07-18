@@ -520,3 +520,62 @@ async def test_run_event_loop_connects_and_routes_the_joined_event(live_server: 
         task.cancel()
         with pytest.raises(asyncio.CancelledError):
             await task
+
+
+async def test_agent_subprocess_flushes_stdout_promptly_when_redirected_to_a_file(live_server: str) -> None:
+    """Regression: main() didn't line-buffer stdout, so when a caller (the
+    swarm script) redirects it to a file instead of a TTY, Python
+    block-buffers stdout by default (stderr stays unbuffered) — a status
+    print like "Joined as 'O'..." could sit unflushed in memory well past
+    the swarm script's short connection-wait timeout, and its final `tail -f`
+    would show nothing in near-real-time either. Reproduces the exact
+    scenario: launches the real client/agent.py as a subprocess with stdout
+    redirected to a real file (not a pipe the test itself is reading, and
+    not a TTY), the same way scripts/run_swarm.sh does `>log 2>&1`."""
+    async with httpx2.AsyncClient(base_url=live_server, timeout=10.0) as http_client:
+        match_id = (await http_client.post("/api/v1/lobby/match")).json()["match_id"]
+
+    # A dummy participant claims X first so the real subprocess (connecting
+    # second) is assigned O and it never becomes its turn — the test only
+    # needs to observe the connect/"joined" phase, never a real LLM call.
+    dummy_token = await join_match(live_server, match_id, "Dummy-X")
+    dummy_ws = await websockets.connect(to_ws_url(live_server, match_id, dummy_token))
+
+    repo_root = Path(__file__).resolve().parent.parent
+    log_path = repo_root / "tests" / f"_tmp_agent_subprocess_{match_id}.log"
+    env = {**os.environ, "GEMINI_API_KEY": "dummy-key-not-used-in-this-test"}
+    process = None
+    try:
+        with open(log_path, "w") as log_file:
+            process = subprocess.Popen(
+                [
+                    sys.executable,
+                    str(repo_root / "client" / "agent.py"),
+                    "--match-id",
+                    match_id,
+                    "--profile",
+                    "profiles/aggressive_bot.yml",
+                    "--server-url",
+                    live_server,
+                ],
+                cwd=repo_root,
+                env=env,
+                stdout=log_file,
+                stderr=subprocess.STDOUT,
+            )
+
+        deadline = time.monotonic() + 3
+        found = False
+        while time.monotonic() < deadline:
+            if log_path.exists() and "Joined as" in log_path.read_text():
+                found = True
+                break
+            time.sleep(0.05)
+
+        assert found, f"'Joined as' did not appear in the log within 3s; contents: {log_path.read_text()!r}"
+    finally:
+        await dummy_ws.close()
+        if process is not None:
+            process.terminate()
+            process.wait(timeout=5)
+        log_path.unlink(missing_ok=True)
