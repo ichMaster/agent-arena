@@ -5,7 +5,10 @@ from starlette.websockets import WebSocketDisconnect
 
 from server.main import app
 
+# Entered (not `with`-scoped) so the FastAPI lifespan runs once and the DB schema
+# exists for every test function below, which share this single client instance.
 client = TestClient(app)
+client.__enter__()
 
 
 def _join(match_id: str, player_name: str = "Ada") -> str:
@@ -74,3 +77,28 @@ def test_ws_connect_with_token_for_different_match_is_closed() -> None:
             raise AssertionError("connection should have been closed before accept")
     except WebSocketDisconnect as exc:
         assert exc.code == 4001
+
+
+def test_ws_chat_action_is_broadcast_to_room() -> None:
+    match_id = client.post("/api/v1/lobby/match").json()["match_id"]
+    token = _join(match_id, "Ada")
+
+    with client.websocket_connect(f"/ws/match/{match_id}?token={token}") as websocket:
+        websocket.send_json({"action": "chat", "payload": {"message": "hello room"}})
+        event = websocket.receive_json()
+        assert event == {"event": "chat_message", "payload": {"sender": "Ada", "message": "hello room"}}
+
+
+def test_ws_malformed_json_gets_error_reply_without_crashing() -> None:
+    match_id = client.post("/api/v1/lobby/match").json()["match_id"]
+    token = _join(match_id, "Ada")
+
+    with client.websocket_connect(f"/ws/match/{match_id}?token={token}") as websocket:
+        websocket.send_text("not valid json")
+        event = websocket.receive_json()
+        assert event["event"] == "error"
+
+        # connection is still alive and the loop is still running
+        websocket.send_json({"action": "chat", "payload": {"message": "still here"}})
+        event = websocket.receive_json()
+        assert event["event"] == "chat_message"

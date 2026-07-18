@@ -1,4 +1,8 @@
-from server.websockets import ClientActionPayload, ConnectionManager, ServerPushEvent
+import uuid
+
+from server.repository import Repository
+from server.websockets import ClientActionPayload, ConnectionManager, ServerPushEvent, handle_client_message
+from server.websockets import manager as global_manager
 
 
 class FakeWebSocket:
@@ -46,3 +50,35 @@ async def test_broadcast_sends_to_all_connections_in_match() -> None:
 def test_client_action_payload_defaults_empty_payload() -> None:
     action = ClientActionPayload(action="chat")
     assert action.payload == {}
+
+
+async def test_handle_client_message_persists_and_broadcasts_chat(repository: Repository) -> None:
+    match_id = str(uuid.uuid4())
+    await repository.create_match(match_id)
+    ws = FakeWebSocket()
+    await global_manager.connect(match_id, ws)
+    try:
+        reply = await handle_client_message(
+            repository, match_id, "Ada", {"action": "chat", "payload": {"message": "hello"}}
+        )
+        assert reply is None
+        assert ws.sent == [{"event": "chat_message", "payload": {"sender": "Ada", "message": "hello"}}]
+        logs = await repository.get_chat_logs(match_id)
+        assert len(logs) == 1
+        assert logs[0].message == "hello"
+    finally:
+        global_manager.disconnect(match_id, ws)
+
+
+async def test_handle_client_message_returns_error_for_unknown_action(repository: Repository) -> None:
+    match_id = str(uuid.uuid4())
+    await repository.create_match(match_id)
+    reply = await handle_client_message(repository, match_id, "Ada", {"action": "teleport"})
+    assert reply is not None
+    assert reply.event == "error"
+
+
+async def test_handle_client_message_returns_error_for_invalid_schema(repository: Repository) -> None:
+    reply = await handle_client_message(repository, "match-x", "Ada", {"payload": {}})
+    assert reply is not None
+    assert reply.event == "error"

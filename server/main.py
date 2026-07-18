@@ -1,15 +1,25 @@
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 
 from server import auth
+from server.database import async_session_maker, init_models
+from server.repository import Repository
 from server.schemas import JoinRequest, JoinResponse, MatchCreateResponse
-from server.websockets import manager
+from server.websockets import ServerPushEvent, handle_client_message, manager
 
 TOKEN_MISSING_OR_INVALID = 4001
 
-app = FastAPI(title="Agent Arena", version="01.02.00")
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    await init_models()
+    yield
+
+
+app = FastAPI(title="Agent Arena", version="01.02.00", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,
@@ -27,7 +37,10 @@ async def health() -> dict[str, str]:
 
 @app.post("/api/v1/lobby/match", response_model=MatchCreateResponse)
 async def create_match() -> MatchCreateResponse:
-    return MatchCreateResponse(match_id=str(uuid.uuid4()))
+    match_id = str(uuid.uuid4())
+    async with async_session_maker() as session:
+        await Repository(session).create_match(match_id)
+    return MatchCreateResponse(match_id=match_id)
 
 
 @app.post("/api/v1/lobby/join", response_model=JoinResponse)
@@ -46,7 +59,19 @@ async def match_socket(websocket: WebSocket, match_id: str) -> None:
 
     await manager.connect(match_id, websocket)
     try:
-        while True:
-            await websocket.receive_text()
+        async with async_session_maker() as session:
+            repository = Repository(session)
+            while True:
+                try:
+                    raw_data = await websocket.receive_json()
+                except ValueError:
+                    await manager.send_to(
+                        websocket, ServerPushEvent(event="error", payload={"detail": "Malformed JSON"})
+                    )
+                    continue
+
+                reply = await handle_client_message(repository, match_id, issued.player_name, raw_data)
+                if reply is not None:
+                    await manager.send_to(websocket, reply)
     except WebSocketDisconnect:
         manager.disconnect(match_id, websocket)

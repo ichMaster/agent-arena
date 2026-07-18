@@ -1,7 +1,9 @@
 from typing import Any
 
 from fastapi import WebSocket
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
+
+from server.repository import Repository
 
 
 class ClientActionPayload(BaseModel):
@@ -41,3 +43,24 @@ class ConnectionManager:
 
 
 manager = ConnectionManager()
+
+
+async def handle_client_message(
+    repository: Repository, match_id: str, sender: str, raw_data: dict[str, Any]
+) -> ServerPushEvent | None:
+    """Validate and route one inbound WS message. Returns an event to send back to the
+    sender only (e.g. an error) or None if the message was already broadcast to the room."""
+    try:
+        action = ClientActionPayload.model_validate(raw_data)
+    except ValidationError as exc:
+        return ServerPushEvent(event="error", payload={"detail": str(exc)})
+
+    if action.action == "chat":
+        message = str(action.payload.get("message", ""))
+        await repository.log_chat(match_id, sender=sender, message=message)
+        await manager.broadcast(
+            match_id, ServerPushEvent(event="chat_message", payload={"sender": sender, "message": message})
+        )
+        return None
+
+    return ServerPushEvent(event="error", payload={"detail": f"Unknown action: {action.action}"})
