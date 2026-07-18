@@ -1,3 +1,9 @@
+Version v02.03.00 (2026-07-18)
+---------------------------
+- Integrated Tic-Tac-Toe rules engine with ConnectionManager, matching connected players to symbols and state tracking.
+- Added event handler processing submit_move JSON payloads, broadcasting updates and game over state.
+- Wrote end-to-end multi-client integration tests checking invalid move errors and win conditions.
+
 Version v02.02.00 (2026-07-18)
 ---------------------------
 - Implemented concrete Tic-Tac-Toe rules engine executing state checks, move validations, and game status vectors.
