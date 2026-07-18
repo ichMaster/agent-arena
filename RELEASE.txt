@@ -1,3 +1,9 @@
+Version v03.03.00 (2026-07-18)
+---------------------------
+- Implemented structured outputs configuration in GeminiClient using Pydantic schema validation.
+- Built a validation loop in the Agent client checking candidate moves against unoccupied cells, retrying up to 3 times on hallucinations and falling back to random valid moves.
+- Integrated WebSocket submission for Agent chat comments and moves.
+
 Version v03.02.00 (2026-07-18)
 ---------------------------
 - Wrapped official google-genai SDK into GeminiClient.
