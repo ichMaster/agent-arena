@@ -245,8 +245,11 @@ def main() -> None:
     # for a long time. That broke both the swarm script's connection-wait
     # (grepping the log for that exact line) and its final `tail -f` (nothing
     # to tail until the buffer happens to fill or the process exits).
-    sys.stdout.reconfigure(line_buffering=True)
-    sys.stderr.reconfigure(line_buffering=True)
+    # sys.stdout/stderr are typed as the narrower `TextIO`, which doesn't
+    # declare .reconfigure() even though the real runtime type (io.TextIOWrapper)
+    # always has it for a normal Python process — a known typeshed gap.
+    sys.stdout.reconfigure(line_buffering=True)  # type: ignore[union-attr]
+    sys.stderr.reconfigure(line_buffering=True)  # type: ignore[union-attr]
 
     api_key = require_gemini_api_key()
     args = parse_args()

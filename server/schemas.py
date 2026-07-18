@@ -8,6 +8,9 @@ class MatchCreateResponse(BaseModel):
 class JoinRequest(BaseModel):
     match_id: str
     player_name: str
+    spectator: bool = Field(
+        default=False, description="Join to watch only — never claims a player seat (X/O)"
+    )
 
 
 class JoinResponse(BaseModel):

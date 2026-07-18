@@ -2,9 +2,10 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import RequestResponseEndpoint
 from starlette.websockets import WebSocketState
 
 from server import auth
@@ -37,7 +38,7 @@ app.mount("/ui", StaticFiles(directory=WEB_DIR, html=True), name="ui")
 
 
 @app.middleware("http")
-async def disable_ui_caching(request: Request, call_next):
+async def disable_ui_caching(request: Request, call_next: RequestResponseEndpoint) -> Response:
     # StaticFiles sets ETag/Last-Modified but no Cache-Control, which lets
     # browsers apply heuristic caching and silently keep serving a stale
     # index.html/app.js/styles.css after an edit — confusing during active
@@ -70,7 +71,9 @@ async def join_match(request: JoinRequest) -> JoinResponse:
     if match is None:
         raise HTTPException(status_code=404, detail=f"Match {request.match_id} not found")
 
-    token = auth.issue_token(match_id=request.match_id, player_name=request.player_name)
+    token = auth.issue_token(
+        match_id=request.match_id, player_name=request.player_name, is_spectator=request.spectator
+    )
     return JoinResponse(token=token)
 
 
@@ -87,7 +90,7 @@ async def match_socket(websocket: WebSocket, match_id: str) -> None:
     # UI's "Human" default) don't collide into the same seat. player_name is
     # still used wherever a human-readable label is needed (chat, logs).
     await manager.connect(match_id, websocket, participant_id=token)
-    await send_joined_event(match_id, websocket, token)
+    await send_joined_event(match_id, websocket, token, is_spectator=issued.is_spectator)
     try:
         async with async_session_maker() as session:
             repository = Repository(session)

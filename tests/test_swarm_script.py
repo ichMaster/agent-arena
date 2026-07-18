@@ -45,3 +45,14 @@ def test_swarm_script_waits_for_the_first_agent_before_starting_the_second() -> 
     aggressive_launch_index = content.index("--symbol X")
     cowardly_launch_index = content.index("--symbol O")
     assert aggressive_launch_index < wait_index < cowardly_launch_index
+
+
+def test_swarm_script_tells_users_to_spectate_not_join() -> None:
+    """Regression: a real swarm run broke because the script told users to
+    "click 'Join Match'" while spectating — Join Match claims a real player
+    seat, so a spectating browser session silently starved one of the two
+    scripted agents of a seat entirely. The script must point at the
+    dedicated Spectate action instead."""
+    content = SCRIPT_PATH.read_text()
+    assert "Spectate Match" in content
+    assert "click 'Join Match'" not in content

@@ -31,8 +31,11 @@ def _create_match() -> str:
     return str(client.post("/api/v1/lobby/match").json()["match_id"])
 
 
-def _join(match_id: str, player_name: str = "Ada") -> str:
-    response = client.post("/api/v1/lobby/join", json={"match_id": match_id, "player_name": player_name})
+def _join(match_id: str, player_name: str = "Ada", spectator: bool = False) -> str:
+    response = client.post(
+        "/api/v1/lobby/join",
+        json={"match_id": match_id, "player_name": player_name, "spectator": spectator},
+    )
     return response.json()["token"]
 
 
@@ -299,3 +302,42 @@ def test_ws_disconnect_frees_the_seat_for_a_new_participant() -> None:
         cara_token = _join(match_id, "Cara")
         with client.websocket_connect(f"/ws/match/{match_id}?token={cara_token}") as cara_ws:
             assert _drain_joined(cara_ws)["payload"]["symbol"] == "O"
+
+
+def test_ws_spectator_never_claims_a_seat_even_if_it_connects_first() -> None:
+    """Regression: a real swarm run failed because a browser session used
+    "Join Match" (a real player join) while waiting for the two scripted
+    agents to connect — it silently claimed one of the only two seats,
+    leaving the second agent with symbol None ("Match already has two
+    players"). A genuine spectator (spectator: true) connecting first, even
+    before either real player, must never consume a seat."""
+    match_id = _create_match()
+    spectator_token = _join(match_id, "Spectator", spectator=True)
+    ada_token = _join(match_id, "Ada")
+    bob_token = _join(match_id, "Bob")
+
+    with (
+        client.websocket_connect(f"/ws/match/{match_id}?token={spectator_token}") as spectator_ws,
+        client.websocket_connect(f"/ws/match/{match_id}?token={ada_token}") as ada_ws,
+        client.websocket_connect(f"/ws/match/{match_id}?token={bob_token}") as bob_ws,
+    ):
+        assert _drain_joined(spectator_ws)["payload"]["symbol"] is None
+        # Both real players still get real seats — the spectator didn't eat one.
+        assert _drain_joined(ada_ws)["payload"]["symbol"] == "X"
+        assert _drain_joined(bob_ws)["payload"]["symbol"] == "O"
+
+        # The spectator still receives broadcasts like any connected client.
+        ada_ws.send_json({"action": "chat", "payload": {"message": "hi"}})
+        assert bob_ws.receive_json()["payload"]["message"] == "hi"
+        assert spectator_ws.receive_json()["payload"]["message"] == "hi"
+
+
+def test_ws_spectator_cannot_submit_a_move_even_if_it_tries() -> None:
+    match_id = _create_match()
+    spectator_token = _join(match_id, "Spectator", spectator=True)
+
+    with client.websocket_connect(f"/ws/match/{match_id}?token={spectator_token}") as spectator_ws:
+        _drain_joined(spectator_ws)
+        spectator_ws.send_json({"action": "submit_move", "payload": {"move": 0}})
+        reply = spectator_ws.receive_json()
+        assert reply["event"] == "error"

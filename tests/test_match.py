@@ -67,3 +67,39 @@ def test_release_participant_updates_the_active_match_registry() -> None:
 
 def test_release_participant_on_unknown_match_does_not_raise() -> None:
     release_participant("no-such-match", "token-ada")
+
+
+def test_mark_spectator_permanently_prevents_assign_symbol() -> None:
+    """Regression: a spectator who joins before the match fills up must never
+    accidentally BECOME one of the two players — a real swarm run had exactly
+    this happen when a browser session used "Join Match" (a real player join)
+    instead of a genuine spectate action, starving one of the two launched
+    agents of a seat entirely."""
+    match = Match("m1")
+    match.mark_spectator("token-spectator")
+    assert match.assign_symbol("token-spectator") is None
+    # The seat isn't just skipped for the spectator — it's still free for
+    # real players, i.e. marking a spectator doesn't waste one of the 2 seats.
+    assert match.assign_symbol("token-ada") == "X"
+    assert match.assign_symbol("token-bob") == "O"
+
+
+def test_mark_spectator_after_already_holding_a_seat_does_not_retroactively_apply() -> None:
+    # Only relevant if a caller marks spectator status before ever calling
+    # assign_symbol for that participant_id (the real WS handshake always
+    # does this in that order) — documented here so the ordering dependency
+    # is explicit rather than implicit.
+    match = Match("m1")
+    match.assign_symbol("token-ada")
+    match.mark_spectator("token-ada")
+    assert match.assign_symbol("token-ada") == "X"  # already-held seat is not revoked
+
+
+def test_release_seat_also_clears_spectator_status() -> None:
+    match = Match("m1")
+    match.mark_spectator("token-spectator")
+    match.release_seat("token-spectator")
+    # Not marked as a spectator anymore — a fresh connection reusing this
+    # participant_id (unlikely in practice, but the state shouldn't linger)
+    # can now be assigned a real seat.
+    assert match.assign_symbol("token-spectator") == "X"

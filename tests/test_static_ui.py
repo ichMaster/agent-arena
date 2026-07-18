@@ -62,3 +62,22 @@ def test_non_ui_routes_are_unaffected_by_the_no_store_header() -> None:
     response = client.get("/api/v1/health")
     assert response.status_code == 200
     assert response.headers.get("cache-control") != "no-store"
+
+
+def test_ui_has_a_real_spectate_action_distinct_from_join() -> None:
+    """Regression: the only way to open an existing match in the browser was
+    "Join Match", which claims a real player seat server-side. A real swarm
+    run broke because a spectating browser session did exactly that,
+    starving one of the two scripted agents of a seat. There must be a
+    genuinely separate spectate action that never claims one."""
+    html = client.get("/ui/").text
+    assert 'id="spectate-match-btn"' in html
+
+    js = client.get("/ui/app.js").text
+    assert "spectateMatch" in js
+    assert "spectator: isSpectator" in js  # the POST /lobby/join body actually carries the flag
+
+
+def test_ui_join_and_host_still_default_to_non_spectator() -> None:
+    js = client.get("/ui/app.js").text
+    assert "promptAndJoin(false)" in js

@@ -9,6 +9,7 @@ const els = {
     sendBtn: document.getElementById('sendBtn'),
     hostBtn: document.getElementById('host-match-btn'),
     joinBtn: document.getElementById('join-match-btn'),
+    spectateBtn: document.getElementById('spectate-match-btn'),
 };
 
 let ws = null;
@@ -32,7 +33,7 @@ async function hostMatch() {
     const data = await response.json();
     currentMatchId = data.match_id;
     setMatchIdDisplay(currentMatchId);
-    await promptAndJoin();
+    await promptAndJoin(false);
 }
 
 async function joinExistingMatch() {
@@ -40,15 +41,28 @@ async function joinExistingMatch() {
     if (!matchId) return;
     currentMatchId = matchId.trim();
     setMatchIdDisplay(currentMatchId);
-    await promptAndJoin();
+    await promptAndJoin(false);
 }
 
-async function promptAndJoin() {
-    myPlayerName = window.prompt('Enter your name:', 'Human') || 'Human';
+async function spectateMatch() {
+    // A real spectator connection: unlike joinExistingMatch, this never
+    // claims a player seat (X/O) server-side (POST /lobby/join with
+    // spectator: true) — clicking "Join Match" on an existing match would
+    // otherwise silently take a seat meant for one of two actual players
+    // (e.g. two agents launched by scripts/run_swarm.sh).
+    const matchId = window.prompt('Enter the Match ID to spectate:');
+    if (!matchId) return;
+    currentMatchId = matchId.trim();
+    setMatchIdDisplay(currentMatchId);
+    await promptAndJoin(true);
+}
+
+async function promptAndJoin(isSpectator) {
+    myPlayerName = window.prompt('Enter your name:', isSpectator ? 'Spectator' : 'Human') || 'Human';
     const response = await fetch('/api/v1/lobby/join', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ match_id: currentMatchId, player_name: myPlayerName }),
+        body: JSON.stringify({ match_id: currentMatchId, player_name: myPlayerName, spectator: isSpectator }),
     });
     if (!response.ok) {
         console.error('Failed to join match:', response.status);
@@ -139,9 +153,22 @@ function handleGameOver({ result }) {
 }
 
 function initPlayerCards(symbol) {
-    const otherSymbol = symbol === 'X' ? 'O' : 'X';
     const humanSymbolEl = document.querySelector('#player-card-human .player-symbol');
     const agentSymbolEl = document.querySelector('#player-card-agent .player-symbol');
+
+    // A spectator's "joined" event carries symbol: null (no seat of its
+    // own) — fall back to the default X/O labels instead of crashing on
+    // null.toLowerCase(). renderBoard already keeps the board correctly
+    // non-interactive for spectators since current_turn is never null.
+    if (symbol === null) {
+        humanSymbolEl.textContent = 'X';
+        humanSymbolEl.className = 'player-symbol player-symbol-x';
+        agentSymbolEl.textContent = 'O';
+        agentSymbolEl.className = 'player-symbol player-symbol-o';
+        return;
+    }
+
+    const otherSymbol = symbol === 'X' ? 'O' : 'X';
     humanSymbolEl.textContent = symbol;
     humanSymbolEl.className = `player-symbol player-symbol-${symbol.toLowerCase()}`;
     agentSymbolEl.textContent = otherSymbol;
@@ -180,6 +207,7 @@ for (let i = 0; i < 9; i++) {
 
 els.hostBtn.addEventListener('click', hostMatch);
 els.joinBtn.addEventListener('click', joinExistingMatch);
+els.spectateBtn.addEventListener('click', spectateMatch);
 
 els.chatForm.addEventListener('submit', (submitEvent) => {
     submitEvent.preventDefault();

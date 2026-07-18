@@ -70,12 +70,18 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
-async def send_joined_event(match_id: str, websocket: WebSocket, participant_id: str) -> None:
+async def send_joined_event(
+    match_id: str, websocket: WebSocket, participant_id: str, is_spectator: bool = False
+) -> None:
     """Sent once, right after a connection is accepted. A client cannot tell
     whose turn it is from a bare `current_turn` broadcast without first
     learning its own assigned symbol — this closes that gap before the
-    client ever needs to act."""
+    client ever needs to act. A spectator connection never claims a seat:
+    marking it before assign_symbol makes that refusal permanent, even if
+    the spectator later (mistakenly or maliciously) sends a submit_move."""
     match = get_or_create_match(match_id)
+    if is_spectator:
+        match.mark_spectator(participant_id)
     symbol = match.assign_symbol(participant_id)
     state = match.game.get_state()
     await manager.send_to(

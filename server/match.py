@@ -13,12 +13,24 @@ class Match:
         # everyone to "Human"), and keying by name would silently merge them
         # into the same seat.
         self.player_symbols: dict[str, str] = {}
+        # Participants who explicitly joined to watch, not play. Tracked
+        # separately so assign_symbol can permanently refuse them a seat —
+        # without this, a spectator who joins before the match fills up
+        # would accidentally BE one of the two players, and a genuine third
+        # player would find no seat left.
+        self.spectator_ids: set[str] = set()
+
+    def mark_spectator(self, participant_id: str) -> None:
+        if participant_id in self.player_symbols:
+            return  # already holds a real seat — can't retroactively become a spectator
+        self.spectator_ids.add(participant_id)
 
     def assign_symbol(self, participant_id: str) -> str | None:
         """Returns this participant's symbol, assigning the next free one on
-        first contact. Returns None once two distinct participants already
-        hold X and O (i.e. this is a third/spectator connection with no seat
-        to play)."""
+        first contact. Returns None if this participant is a marked spectator,
+        or once two distinct (non-spectator) participants already hold X and O."""
+        if participant_id in self.spectator_ids:
+            return None
         if participant_id in self.player_symbols:
             return self.player_symbols[participant_id]
         if len(self.player_symbols) >= 2:
@@ -34,6 +46,7 @@ class Match:
         mid-game disconnect would permanently strand the match, since
         assign_symbol refuses any third participant once two seats are held."""
         self.player_symbols.pop(participant_id, None)
+        self.spectator_ids.discard(participant_id)
 
     @property
     def current_turn(self) -> str:

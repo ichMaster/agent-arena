@@ -22,7 +22,9 @@ fi
 
 echo ""
 echo "Match created: ${MATCH_ID}"
-echo "Spectate at:   ${SERVER_URL}/ui  (click 'Join Match' and paste the Match ID above)"
+echo "Spectate at:   ${SERVER_URL}/ui  (click 'Spectate Match' and paste the Match ID above)"
+echo "               IMPORTANT: use 'Spectate Match', not 'Join Match' — Join Match claims one"
+echo "               of the only two player seats and leaves one of the two agents locked out."
 echo ""
 read -r -p "Open the Web UI now, then press Enter to unleash the agents..." _unused
 
