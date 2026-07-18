@@ -1,7 +1,8 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uuid
+from server.websockets import manager
 
 app = FastAPI(title="Agent Arena", version="01.02.00")
 
@@ -38,3 +39,23 @@ async def join_match(request: JoinRequest):
     # For now, generate a random temporary opaque Auth Token
     token = str(uuid.uuid4())
     return JoinResponse(token=token)
+
+@app.websocket("/ws/match/{match_id}")
+async def websocket_endpoint(websocket: WebSocket, match_id: str, token: str = None):
+    if not token:
+        await websocket.close(code=1008)
+        return
+        
+    try:
+        uuid.UUID(token)
+    except ValueError:
+        await websocket.close(code=1008)
+        return
+        
+    await manager.connect(websocket, match_id)
+    try:
+        while True:
+            # For now, just keep the connection open and discard received packets
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        manager.disconnect(websocket, match_id)
