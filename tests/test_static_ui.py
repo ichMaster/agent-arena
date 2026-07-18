@@ -46,3 +46,19 @@ def test_ui_app_js_displays_the_full_match_id_not_a_truncated_prefix() -> None:
     assert response.status_code == 200
     assert ".slice(0, 8)" not in response.text
     assert "setMatchIdDisplay" in response.text
+
+
+def test_ui_assets_are_never_cached_by_the_browser() -> None:
+    """StaticFiles alone sets ETag/Last-Modified but no Cache-Control, which
+    lets browsers heuristically cache /ui/* and keep serving a stale
+    index.html/app.js/styles.css after an edit — confusing during active
+    development, since a genuinely-fixed bug can appear to still reproduce."""
+    for path in ("/ui/", "/ui/app.js", "/ui/styles.css"):
+        response = client.get(path)
+        assert response.headers.get("cache-control") == "no-store", path
+
+
+def test_non_ui_routes_are_unaffected_by_the_no_store_header() -> None:
+    response = client.get("/api/v1/health")
+    assert response.status_code == 200
+    assert response.headers.get("cache-control") != "no-store"

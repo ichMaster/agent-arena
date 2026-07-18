@@ -2,7 +2,7 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.websockets import WebSocketState
@@ -34,6 +34,20 @@ app.add_middleware(
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 app.mount("/ui", StaticFiles(directory=WEB_DIR, html=True), name="ui")
+
+
+@app.middleware("http")
+async def disable_ui_caching(request: Request, call_next):
+    # StaticFiles sets ETag/Last-Modified but no Cache-Control, which lets
+    # browsers apply heuristic caching and silently keep serving a stale
+    # index.html/app.js/styles.css after an edit — confusing during active
+    # development (a fixed bug can appear to still be present). This is a
+    # local dev tool, not a CDN-fronted production app, so always serve
+    # /ui/* fresh instead of trying to tune cache lifetimes correctly.
+    response = await call_next(request)
+    if request.url.path.startswith("/ui"):
+        response.headers["Cache-Control"] = "no-store"
+    return response
 
 
 @app.get("/api/v1/health")
