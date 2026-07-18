@@ -17,34 +17,43 @@
             <header class="header">
                 <h1>Agent Arena</h1>
                 <div class="status" id="connection-status">
-                    <span class="status-dot" id="status-dot"></span>
+                    <span class="status-dot disconnected" id="connection-dot"></span>
                     <span id="status-text">Disconnected</span>
-                    <span id="match-display"></span>
+                    <span class="match-info">
+                        Match ID: <span id="match-id-display">None</span>
+                    </span>
                 </div>
             </header>
 
+            <div class="lobby-controls">
+                <button class="btn btn-primary" id="hostBtn">Host New Match</button>
+                <button class="btn btn-secondary" id="joinBtn">Join Match</button>
+            </div>
+
             <!-- 3x3 Board Grid -->
-            <div class="board" id="board">
-                <div class="cell" id="cell-0" data-index="0"></div>
-                <div class="cell" id="cell-1" data-index="1"></div>
-                <div class="cell" id="cell-2" data-index="2"></div>
-                <div class="cell" id="cell-3" data-index="3"></div>
-                <div class="cell" id="cell-4" data-index="4"></div>
-                <div class="cell" id="cell-5" data-index="5"></div>
-                <div class="cell" id="cell-6" data-index="6"></div>
-                <div class="cell" id="cell-7" data-index="7"></div>
-                <div class="cell" id="cell-8" data-index="8"></div>
+            <div class="board-container">
+                <div class="board" id="board">
+                    <div class="cell disabled" id="cell-0" data-index="0"></div>
+                    <div class="cell disabled" id="cell-1" data-index="1"></div>
+                    <div class="cell disabled" id="cell-2" data-index="2"></div>
+                    <div class="cell disabled" id="cell-3" data-index="3"></div>
+                    <div class="cell disabled" id="cell-4" data-index="4"></div>
+                    <div class="cell disabled" id="cell-5" data-index="5"></div>
+                    <div class="cell disabled" id="cell-6" data-index="6"></div>
+                    <div class="cell disabled" id="cell-7" data-index="7"></div>
+                    <div class="cell disabled" id="cell-8" data-index="8"></div>
+                </div>
             </div>
             
             <!-- Player cards area -->
             <div class="players">
                  <div class="player-card" id="card-x">
-                    <span style="color: var(--accent-primary); font-weight: bold; font-size: 1.2rem;">X</span>
-                    <span id="label-x">Player X (Human)</span>
+                    <span class="symbol" style="color: var(--accent-primary); font-weight: bold; font-size: 1.2rem;">X</span>
+                    <span class="name" id="label-x">Player X (Human)</span>
                  </div>
                  <div class="player-card" id="card-o">
-                    <span style="color: var(--agent-color); font-weight: bold; font-size: 1.2rem;">O</span>
-                    <span id="label-o">Player O (Agent)</span>
+                    <span class="symbol" style="color: var(--agent-color); font-weight: bold; font-size: 1.2rem;">O</span>
+                    <span class="name" id="label-o">Player O (Agent)</span>
                  </div>
             </div>
         </section>
@@ -57,16 +66,18 @@
             
             <div class="messages" id="chat-messages">
                 <div class="message system">
-                    Match initialized. Waiting for connections...
+                    Waiting for match to begin...
                 </div>
             </div>
 
             <footer class="chat-input">
-                <input type="text" id="chat-input" placeholder="Message the room..." disabled>
-                <button id="chat-send" disabled>Send</button>
+                <input type="text" id="chat-input" placeholder="Type a message..." disabled>
+                <button class="btn btn-send" id="sendBtn" disabled>Send</button>
             </footer>
         </section>
     </main>
 
+    <!-- JavaScript App Logic -->
+    <script src="/static/app.js"></script>
 </body>
 </html>
