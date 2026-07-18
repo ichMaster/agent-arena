@@ -12,7 +12,15 @@ import uvicorn
 import websockets
 from pydantic import ValidationError
 
-from client.agent import AgentSession, join_match, parse_args, require_gemini_api_key, run_event_loop, to_ws_url
+from client.agent import (
+    MAX_MOVE_ATTEMPTS,
+    AgentSession,
+    join_match,
+    parse_args,
+    require_gemini_api_key,
+    run_event_loop,
+    to_ws_url,
+)
 from client.schemas import AgentResponse
 from server.main import app
 
@@ -165,6 +173,70 @@ async def test_agent_session_handles_malformed_llm_response_without_crashing() -
     await session.handle_event(
         {"event": "state_update", "payload": {"board": [None] * 9, "current_turn": "X", "valid_moves": [0]}}
     )
+
+
+async def test_decide_move_accepts_a_valid_first_response() -> None:
+    fake_llm = AsyncMock()
+    fake_llm.generate_structured_response.return_value = AgentResponse(move=4, comment="Center, obviously.")
+    session = AgentSession("Ada", llm=fake_llm)
+
+    result = await session._decide_move(board=[None] * 9, valid_moves=list(range(9)))
+
+    assert result.move == 4
+    assert fake_llm.generate_structured_response.await_count == 1
+
+
+async def test_decide_move_retries_after_an_invalid_move_then_succeeds() -> None:
+    fake_llm = AsyncMock()
+    fake_llm.generate_structured_response.side_effect = [
+        AgentResponse(move=99, comment="I'll take the corner."),  # invalid: not in valid_moves
+        AgentResponse(move=4, comment="Fine, the center then."),
+    ]
+    session = AgentSession("Ada", llm=fake_llm)
+
+    result = await session._decide_move(board=[None] * 9, valid_moves=[4, 5, 6])
+
+    assert result.move == 4
+    assert fake_llm.generate_structured_response.await_count == 2
+    second_prompt = fake_llm.generate_structured_response.await_args_list[1].args[0]
+    assert "Move 99 is invalid" in second_prompt
+    assert "[4, 5, 6]" in second_prompt
+
+
+async def test_decide_move_falls_back_to_random_valid_move_after_exhausting_attempts() -> None:
+    fake_llm = AsyncMock()
+    fake_llm.generate_structured_response.return_value = AgentResponse(move=99, comment="Corner!")
+    session = AgentSession("Ada", llm=fake_llm)
+
+    result = await session._decide_move(board=[None] * 9, valid_moves=[7])
+
+    assert result.move == 7  # only one legal option, so the fallback is deterministic here
+    assert fake_llm.generate_structured_response.await_count == MAX_MOVE_ATTEMPTS
+
+
+async def test_decide_move_falls_back_after_repeated_unparseable_responses() -> None:
+    fake_llm = AsyncMock()
+    fake_llm.generate_structured_response.side_effect = ValidationError.from_exception_data(
+        "AgentResponse", [{"type": "missing", "loc": ("move",), "input": {}}]
+    )
+    session = AgentSession("Ada", llm=fake_llm)
+
+    result = await session._decide_move(board=[None] * 9, valid_moves=[3])
+
+    assert result.move == 3
+    assert fake_llm.generate_structured_response.await_count == MAX_MOVE_ATTEMPTS
+
+
+async def test_on_my_turn_skips_llm_when_no_valid_moves() -> None:
+    fake_llm = AsyncMock()
+    session = AgentSession("Ada", llm=fake_llm)
+    session.symbol = "X"
+
+    await session.handle_event(
+        {"event": "state_update", "payload": {"board": ["X"] * 9, "current_turn": "X", "valid_moves": []}}
+    )
+
+    fake_llm.generate_structured_response.assert_not_awaited()
 
 
 def _free_port() -> int:

@@ -2,6 +2,7 @@ import argparse
 import asyncio
 import json
 import os
+import random
 import sys
 from typing import Any
 
@@ -17,6 +18,7 @@ from client.prompt import build_prompt
 from client.schemas import AgentResponse
 
 DEFAULT_SERVER_URL = "http://localhost:8000"
+MAX_MOVE_ATTEMPTS = 3
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -88,17 +90,43 @@ class AgentSession:
         board = payload.get("board", [])
         valid_moves = payload.get("valid_moves", [])
         print(f"[{self.player_name}] It's my turn. valid_moves={valid_moves}")
-        if self.llm is None:
+        if self.llm is None or not valid_moves:
             return
 
+        agent_response = await self._decide_move(board, valid_moves)
+        print(f"[{self.player_name}] Decided move={agent_response.move} comment={agent_response.comment!r}")
+
+    async def _decide_move(self, board: list[Any], valid_moves: list[int]) -> AgentResponse:
+        """Asks the LLM for a move, retrying up to MAX_MOVE_ATTEMPTS times if it
+        hallucinates an out-of-bounds/occupied cell or returns unparseable JSON.
+        Falls back to a random valid move rather than stalling the game."""
+        assert self.llm is not None
         prompt = build_prompt(self.memory, board, valid_moves)
-        try:
-            agent_response = await self.llm.generate_structured_response(prompt, AgentResponse)
-        except (ValueError, ValidationError) as exc:
-            print(f"[{self.player_name}] Failed to parse LLM response as AgentResponse: {exc}", file=sys.stderr)
-            return
+        last_comment = ""
 
-        print(f"[{self.player_name}] LLM chose move={agent_response.move} comment={agent_response.comment!r}")
+        for attempt in range(1, MAX_MOVE_ATTEMPTS + 1):
+            try:
+                agent_response = await self.llm.generate_structured_response(prompt, AgentResponse)
+            except (ValueError, ValidationError) as exc:
+                print(f"[{self.player_name}] Attempt {attempt}: unparseable LLM response: {exc}", file=sys.stderr)
+                prompt = f"{prompt}\n\nYour previous reply could not be parsed. Respond with valid JSON only."
+                continue
+
+            if agent_response.move in valid_moves:
+                return agent_response
+
+            print(
+                f"[{self.player_name}] Attempt {attempt}: move {agent_response.move} is invalid.", file=sys.stderr
+            )
+            last_comment = agent_response.comment
+            prompt = (
+                f"{build_prompt(self.memory, board, valid_moves)}\n\n"
+                f"Error: Move {agent_response.move} is invalid. The valid moves are {valid_moves}. Try again."
+            )
+
+        fallback_move = random.choice(valid_moves)
+        print(f"[{self.player_name}] Exhausted {MAX_MOVE_ATTEMPTS} attempts; falling back to move {fallback_move}.")
+        return AgentResponse(move=fallback_move, comment=last_comment or "Fine. I'll play here.")
 
     async def handle_event(self, event: dict[str, Any]) -> None:
         kind = event.get("event")
