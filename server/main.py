@@ -2,7 +2,7 @@ import uuid
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from starlette.websockets import WebSocketState
@@ -51,6 +51,11 @@ async def create_match() -> MatchCreateResponse:
 
 @app.post("/api/v1/lobby/join", response_model=JoinResponse)
 async def join_match(request: JoinRequest) -> JoinResponse:
+    async with async_session_maker() as session:
+        match = await Repository(session).get_match(request.match_id)
+    if match is None:
+        raise HTTPException(status_code=404, detail=f"Match {request.match_id} not found")
+
     token = auth.issue_token(match_id=request.match_id, player_name=request.player_name)
     return JoinResponse(token=token)
 
@@ -63,8 +68,12 @@ async def match_socket(websocket: WebSocket, match_id: str) -> None:
         await websocket.close(code=TOKEN_MISSING_OR_INVALID)
         return
 
-    await manager.connect(match_id, websocket)
-    await send_joined_event(match_id, websocket, issued.player_name)
+    # The token is a unique per-join identity — used as the match "seat" key
+    # (participant_id) so two sessions sharing a display name (e.g. the Web
+    # UI's "Human" default) don't collide into the same seat. player_name is
+    # still used wherever a human-readable label is needed (chat, logs).
+    await manager.connect(match_id, websocket, participant_id=token)
+    await send_joined_event(match_id, websocket, token)
     try:
         async with async_session_maker() as session:
             repository = Repository(session)
@@ -77,7 +86,7 @@ async def match_socket(websocket: WebSocket, match_id: str) -> None:
                     )
                     continue
 
-                reply = await handle_client_message(repository, match_id, issued.player_name, raw_data)
+                reply = await handle_client_message(repository, match_id, token, issued.player_name, raw_data)
                 if reply is not None:
                     await manager.send_to(websocket, reply)
 
@@ -87,4 +96,14 @@ async def match_socket(websocket: WebSocket, match_id: str) -> None:
                 if websocket.application_state != WebSocketState.CONNECTED:
                     break
     except WebSocketDisconnect:
+        pass
+    finally:
+        # A plain `except WebSocketDisconnect` here is not enough: with an
+        # open DB session (the `async with async_session_maker()` above), a
+        # client-initiated disconnect propagates as an anyio CancelledError
+        # instead, which WebSocketDisconnect never catches — silently
+        # skipping this cleanup and leaking the match seat forever. `finally`
+        # runs regardless of which of those (or neither, on a clean `break`
+        # from game_over) is what actually ended the loop, and CancelledError
+        # still propagates onward afterward as it must.
         manager.disconnect(match_id, websocket)
