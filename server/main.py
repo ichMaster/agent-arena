@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import uuid
 
-app = FastAPI(title="Agent Arena", version="01.01.00")
+app = FastAPI(title="Agent Arena", version="01.02.00")
 
 # Allow all origins for local development
 app.add_middleware(

@@ -1,3 +1,10 @@
+Version v01.02.00 (2026-07-18)
+---------------------------
+- Integrated async SQLite database connection using SQLAlchemy and aiosqlite.
+- Defined relational tables for matches, move logs, and chat message logging.
+- Implemented ArenaRepository pattern exposing async query methods.
+- Created init_db.py database validation script populating database and verifying integrity constraint errors.
+
 Version v01.01.00 (2026-07-18)
 ---------------------------
 - Set up FastAPI project skeleton with CORS middleware enabling local development.
