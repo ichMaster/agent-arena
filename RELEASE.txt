@@ -1,8 +1,14 @@
+Version v05.01.00 (2026-07-18)
+---------------------------
+- Formulated strict AgentProfile Pydantic config validation schemas.
+- Packaged aggressive and defensive bot YAML profile configs inside profiles/.
+- Integrated PyYAML file parsers with unit test validations.
+
 Version v04.03.00 (2026-07-18)
 ---------------------------
 - Added assigned player symbol tracking and active turn indicator updates.
 - Enabled interactive board cell clicks transmitting moves to the server.
-- Built fully interactive chat inputs and structured message ledge appending.
+- Built fully interactive chat inputs and structured message ledger appending.
 - Added game over freeze controls and winner display banner.
 
 Version v04.02.00 (2026-07-18)
