@@ -1,12 +1,23 @@
 import os
 from abc import ABC, abstractmethod
+from typing import Type, TypeVar, cast
 from google import genai
+from pydantic import BaseModel
+
+T = TypeVar('T', bound=BaseModel)
 
 class LLMClient(ABC):
     @abstractmethod
     async def generate_response(self, prompt: str) -> str:
         """
         Asynchronously generates a response from the LLM based on the prompt.
+        """
+        pass
+
+    @abstractmethod
+    async def generate_structured_response(self, prompt: str, response_schema: Type[T]) -> T:
+        """
+        Asynchronously generates a structured response validated against a Pydantic schema.
         """
         pass
 
@@ -27,3 +38,18 @@ class GeminiClient(LLMClient):
             contents=prompt
         )
         return str(response.text)
+
+    async def generate_structured_response(self, prompt: str, response_schema: Type[T]) -> T:
+        response = await self.client.aio.models.generate_content(
+            model=self.model_id,
+            contents=prompt,
+            config={
+                "response_mime_type": "application/json",
+                "response_schema": response_schema,
+            }
+        )
+        parsed = response.parsed
+        if parsed is None:
+            raise ValueError("Failed to parse structured response from Gemini API")
+        return cast(T, parsed)
+

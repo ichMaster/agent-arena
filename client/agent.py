@@ -2,14 +2,20 @@ import asyncio
 import argparse
 import os
 import json
+import random
 import httpx
 import websockets
 from dotenv import load_dotenv
+from pydantic import BaseModel
 from client.llm import GeminiClient
 from client.memory import MemoryWindow
 
 # Load environment variables (such as GEMINI_API_KEY)
 load_dotenv()
+
+class AgentResponse(BaseModel):
+    move: int
+    comment: str
 
 async def get_auth_token(base_url: str, match_id: str, player_name: str) -> str:
     join_url = f"{base_url}/api/v1/lobby/join"
@@ -90,7 +96,13 @@ async def run_agent(match_id: str, server_url: str, player_name: str, symbol: st
                         print(f"[*] It is my turn ({symbol})! Formulating structured prompt...")
                         valid_moves = [i for i, cell in enumerate(board) if cell is None]
                         
-                        prompt = f"""
+                        prompt_error_ctx = ""
+                        chosen_move = None
+                        chosen_comment = ""
+                        max_attempts = 3
+                        
+                        for attempt in range(max_attempts):
+                            prompt = f"""
 System Persona: You are an arrogant Tic-Tac-Toe master. Never lose.
 
 Recent History:
@@ -98,16 +110,52 @@ Recent History:
 
 Current Board: {board}
 Valid Moves (Indices): {valid_moves}
-
+{prompt_error_ctx}
 It is your turn. Please state your move (0-8) and provide a short comment that fits your persona.
 """
-                        print("[*] Prompt constructed. Hitting LLM API...")
-                        try:
-                            # Hit LLM API
-                            response_text = await llm_client.generate_response(prompt)
-                            print(f"\n[RAW LLM RESPONSE]\n{response_text}\n-----------------")
-                        except Exception as e:
-                            print(f"[-] LLM API error: {e}")
+                            print(f"[*] Hitting LLM API (Attempt {attempt+1}/{max_attempts})...")
+                            try:
+                                response_obj = await llm_client.generate_structured_response(prompt, AgentResponse)
+                                move = response_obj.move
+                                comment = response_obj.comment
+                                print(f"[+] LLM output: chosen move -> {move} | comment -> '{comment}'")
+                                
+                                if move in valid_moves:
+                                    chosen_move = move
+                                    chosen_comment = comment
+                                    break
+                                else:
+                                    print(f"[!] Hallucinated invalid move: {move}")
+                                    prompt_error_ctx = f"\nError: Move {move} is invalid. The valid moves are {valid_moves}. Try again.\n"
+                            except Exception as e:
+                                print(f"[-] LLM generation error: {e}")
+                                prompt_error_ctx = f"\nError during LLM API call: {e}. Try again.\n"
+                                
+                        # Fallback if no valid move was selected after retries
+                        if chosen_move is None:
+                            chosen_move = random.choice(valid_moves)
+                            chosen_comment = "Bah, my algorithms are temporarily computing universe structures, this move will suffice."
+                            print(f"[!] Fallback to random move: {chosen_move}")
+                            
+                        # Send chat message comment
+                        chat_payload = {
+                            "action": "chat_message",
+                            "payload": {
+                                "sender": player_name,
+                                "message": chosen_comment
+                            }
+                        }
+                        await ws.send(json.dumps(chat_payload))
+                        
+                        # Send move payload
+                        move_payload = {
+                            "action": "submit_move",
+                            "payload": {
+                                "move": chosen_move
+                            }
+                        }
+                        await ws.send(json.dumps(move_payload))
+                        print(f"[+] Sent move {chosen_move} and chat comment to server")
                             
                 elif event == "chat_message":
                     sender = event_data.get("sender")

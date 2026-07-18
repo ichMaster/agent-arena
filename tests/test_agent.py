@@ -8,7 +8,7 @@ from fastapi.testclient import TestClient
 from server.main import app
 from server.database import async_session_maker
 from server.repository import ArenaRepository
-from client.agent import run_agent
+from client.agent import run_agent, AgentResponse
 
 client = TestClient(app)
 
@@ -27,26 +27,47 @@ async def test_agent_run_lifecycle(server_port):
         
     server_url = f"http://127.0.0.1:{server_port}"
     
-    # Mock GeminiClient so it doesn't try to connect to the real Gemini API
+    # Mock GeminiClient with a delayed response to allow spectator connection first
     mock_gemini = AsyncMock()
-    mock_gemini.generate_response.return_value = "Move: 4. Comment: I am superior."
+    async def delayed_generate(prompt, schema):
+        await asyncio.sleep(0.4)
+        return AgentResponse(move=4, comment="I am superior.")
+    mock_gemini.generate_structured_response.side_effect = delayed_generate
     
     with patch("client.agent.GeminiClient", return_value=mock_gemini):
-        # Run the agent in a background task playing as 'X'
+        # Run the agent task (will be X)
         agent_task = asyncio.create_task(run_agent(match_id, server_url, "Agent_X", "X"))
         
-        # Wait for the agent to connect and process the initial turn update
-        await asyncio.sleep(0.8)
+        # Wait a tiny bit for the agent to establish connection
+        await asyncio.sleep(0.1)
         
-        # Assert background task isn't failed
-        assert not agent_task.done() or agent_task.exception() is None
+        # Connect the spectator (will be O)
+        token_spectator = str(uuid.uuid4())
+        ws_spectator_url = f"ws://127.0.0.1:{server_port}/ws/match/{match_id}?token={token_spectator}"
         
-        # Verify the mock LLM client was called because 'X' starts
-        assert mock_gemini.generate_response.called
-        
-        # Cancel the agent task gracefully
-        agent_task.cancel()
-        try:
-            await agent_task
-        except asyncio.CancelledError:
-            pass
+        async with websockets.connect(ws_spectator_url) as ws_spec:
+            # Spectator receives initial empty state
+            init_state = json.loads(await ws_spec.recv())
+            assert init_state["event"] == "state_update"
+            assert init_state["data"]["board"][4] is None
+            
+            # Now wait for the agent to finish sleeping and send actions
+            chat_evt = json.loads(await ws_spec.recv())
+            assert chat_evt["event"] == "chat_message"
+            assert chat_evt["data"]["sender"] == "Agent_X"
+            assert chat_evt["data"]["message"] == "I am superior."
+            
+            # Spectator receives state update showing move applied
+            state_evt = json.loads(await ws_spec.recv())
+            assert state_evt["event"] == "state_update"
+            assert state_evt["data"]["board"][4] == "X"
+            
+            # Assert background task is healthy
+            assert not agent_task.done() or agent_task.exception() is None
+            
+            # Cancel task gracefully
+            agent_task.cancel()
+            try:
+                await agent_task
+            except asyncio.CancelledError:
+                pass
