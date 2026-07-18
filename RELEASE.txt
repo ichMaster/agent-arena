@@ -1,5 +1,9 @@
 # Agent Arena — Release Notes
 
+## v04.02.00 — Native WebSockets & Authentication
+- `web/app.js`: `hostMatch()`/`joinExistingMatch()` hit the lobby HTTP endpoints and acquire an auth token; `connectSocket()` then opens a real `WebSocket` to `/ws/match/{id}?token=...`.
+- Server Status dot toggles green/red on `onopen`/`onclose`; `onmessage` routes every real event type (`joined`, `state_update`, `chat_message`, `game_over`, `error`) through a dispatcher — DOM rendering from these lands in v04.03.
+
 ## v04.01.00 — HTML/CSS Skeleton
 - `web/index.html` + `web/styles.css`: semantic structure split out from `spec/ui_prototype.html`, no JS yet — buttons/inputs present but inert.
 - Full Glassmorphism color system as CSS custom properties (accent/agent/status colors, glass-inset opacities), 3x3 CSS Grid board, Flexbox chat sidebar, and a responsive breakpoint (the prototype had none) so the layout stacks and fits on narrow viewports.
