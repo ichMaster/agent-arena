@@ -9,7 +9,17 @@ from server.repository import ArenaRepository
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse
 
-app = FastAPI(title="Agent Arena", version="05.03.00")
+from contextlib import asynccontextmanager
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    from server.models import MatchModel, MoveLogModel, ChatLogModel
+    from server.database import Base, engine
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    yield
+
+app = FastAPI(title="Agent Arena", version="05.03.00", lifespan=lifespan)
 
 # Allow all origins for local development
 app.add_middleware(
