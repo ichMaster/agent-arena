@@ -69,17 +69,17 @@ async def join_match(request: JoinRequest):
     token = str(uuid.uuid4())
     return JoinResponse(token=token)
 
+from fastapi import WebSocketException
+
 @app.websocket("/ws/match/{match_id}")
 async def websocket_endpoint(websocket: WebSocket, match_id: str, token: str = None):
     if not token:
-        await websocket.close(code=1008)
-        return
+        raise WebSocketException(code=1008)
         
     try:
         uuid.UUID(token)
     except ValueError:
-        await websocket.close(code=1008)
-        return
+        raise WebSocketException(code=1008)
         
     await manager.connect(websocket, match_id)
     try:
