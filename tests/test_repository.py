@@ -1,6 +1,7 @@
 import uuid
 
 import pytest
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
 from server.database import Base
@@ -42,3 +43,8 @@ async def test_log_and_fetch_chat(repository: Repository) -> None:
     logs = await repository.get_chat_logs(match_id)
     assert len(logs) == 1
     assert logs[0].message == "gg"
+
+
+async def test_move_log_rejects_nonexistent_match_id(repository: Repository) -> None:
+    with pytest.raises(IntegrityError):
+        await repository.log_move(str(uuid.uuid4()), player_id="X", move_payload={"cell": 0})
