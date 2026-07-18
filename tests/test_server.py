@@ -1,6 +1,12 @@
 import uuid
 import pytest
 import pytest_asyncio
+import threading
+import time
+import socket
+import json
+import uvicorn
+import websockets
 from fastapi.testclient import TestClient
 from server.main import app
 from server.database import Base, engine, async_session_maker
@@ -13,6 +19,30 @@ async def setup_db():
     yield
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.drop_all)
+
+def get_free_port():
+    s = socket.socket()
+    s.bind(('', 0))
+    port = s.getsockname()[1]
+    s.close()
+    return port
+
+@pytest.fixture(scope="module")
+def server_port():
+    port = get_free_port()
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning")
+    server = uvicorn.Server(config)
+    
+    thread = threading.Thread(target=server.run)
+    thread.daemon = True
+    thread.start()
+    
+    # Wait for server to start
+    time.sleep(0.5)
+    yield port
+    
+    server.should_exit = True
+    thread.join(timeout=2)
 
 client = TestClient(app)
 
@@ -117,3 +147,64 @@ async def test_websocket_chat_persistence_and_broadcast():
         assert len(chats) == 1
         assert chats[0].sender == "Alice"
         assert chats[0].message == "Hi everyone!"
+
+@pytest.mark.asyncio
+async def test_websocket_concurrent_clients(server_port):
+    # First create a match and save to database
+    resp_match = client.post("/api/v1/lobby/match")
+    match_id = resp_match.json()["match_id"]
+    
+    async with async_session_maker() as session:
+        repo = ArenaRepository(session)
+        from server.models import MatchModel, MatchStatus
+        match = MatchModel(id=match_id, status=MatchStatus.PENDING)
+        session.add(match)
+        await session.commit()
+        
+    # Generate distinct tokens
+    token1 = str(uuid.uuid4())
+    token2 = str(uuid.uuid4())
+    
+    # Connect client 1 and client 2 concurrently using real async websockets
+    url1 = f"ws://127.0.0.1:{server_port}/ws/match/{match_id}?token={token1}"
+    url2 = f"ws://127.0.0.1:{server_port}/ws/match/{match_id}?token={token2}"
+    
+    async with websockets.connect(url1) as ws1:
+        async with websockets.connect(url2) as ws2:
+            # Client 1 sends a message
+            action1 = {
+                "action": "chat_message",
+                "payload": {"sender": "Client 1", "message": "Hello from 1"}
+            }
+            await ws1.send(json.dumps(action1))
+            
+            # Both should receive Client 1's message
+            res1 = json.loads(await ws1.recv())
+            res2 = json.loads(await ws2.recv())
+            
+            assert res1["event"] == "chat_message"
+            assert res1["data"]["sender"] == "Client 1"
+            assert res1["data"]["message"] == "Hello from 1"
+            
+            assert res2["event"] == "chat_message"
+            assert res2["data"]["sender"] == "Client 1"
+            assert res2["data"]["message"] == "Hello from 1"
+            
+            # Client 2 sends a message
+            action2 = {
+                "action": "chat_message",
+                "payload": {"sender": "Client 2", "message": "Hello from 2"}
+            }
+            await ws2.send(json.dumps(action2))
+            
+            # Both should receive Client 2's message
+            res1_new = json.loads(await ws1.recv())
+            res2_new = json.loads(await ws2.recv())
+            
+            assert res1_new["event"] == "chat_message"
+            assert res1_new["data"]["sender"] == "Client 2"
+            assert res1_new["data"]["message"] == "Hello from 2"
+            
+            assert res2_new["event"] == "chat_message"
+            assert res2_new["data"]["sender"] == "Client 2"
+            assert res2_new["data"]["message"] == "Hello from 2"

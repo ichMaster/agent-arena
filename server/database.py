@@ -1,13 +1,14 @@
 import os
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
 from sqlalchemy.orm import declarative_base
-from sqlalchemy import event
+from sqlalchemy import event, NullPool
 
 # Default DB URL, check environment variable for tests to override
 DATABASE_URL = os.getenv("DATABASE_URL", "sqlite+aiosqlite:///arena.db")
 
 engine = create_async_engine(
     DATABASE_URL,
+    poolclass=NullPool,
     connect_args={"timeout": 30},
     echo=False
 )
