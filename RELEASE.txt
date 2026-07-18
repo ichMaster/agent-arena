@@ -1,5 +1,13 @@
 # Agent Arena — Release Notes
 
+## v01.03.00 — WebSocket Connection Manager
+- `ClientActionPayload`/`ServerPushEvent` Pydantic schemas and a `ConnectionManager` singleton (`match_id -> [WebSocket]`).
+- `POST /lobby/join` now issues real, validated tokens (in-memory store keyed by `match_id`); `/ws/match/{match_id}` accepts only a correct token for that specific match, closing pre-`accept()` (code 4001) otherwise.
+- `/lobby/match` now persists a `MatchModel` row so later chat/move FK constraints resolve correctly.
+- WS receive loop validates `chat` actions, persists them via the `Repository`, and broadcasts to the room; malformed JSON or unknown actions get an isolated `error` reply without dropping the connection.
+- Replaced the deprecated `@app.on_event("startup")` with a `lifespan` context manager.
+- 2+ concurrent WebSocket clients verified to exchange chat within a match and never cross-talk between matches.
+
 ## v01.02.00 — Database Layer
 - Async SQLAlchemy engine over `aiosqlite` (`sqlite+aiosqlite:///arena.db`) with SQLite foreign-key enforcement enabled.
 - `MatchModel`, `MoveLogModel`, `ChatLogModel` schema with FK relationships.
