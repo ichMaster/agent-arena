@@ -4,7 +4,18 @@ import json
 import os
 import random
 import sys
+from pathlib import Path
 from typing import Any
+
+# Every roadmap issue documents this CLI as `python client/agent.py ...` (a
+# direct script invocation), but the module below imports its siblings as
+# `client.llm`, `client.memory`, etc. Running the file directly puts only
+# `client/` on sys.path, not the project root, so those absolute imports
+# would fail with "No module named 'client'". Adding the project root here
+# (skipped when this is imported normally, e.g. `from client.agent import
+# ...` in tests, since __package__ is then non-empty) makes both work.
+if __package__ in (None, ""):
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import httpx2
 import websockets

@@ -2,8 +2,11 @@ import asyncio
 import json
 import os
 import socket
+import subprocess
+import sys
 import threading
 import time
+from pathlib import Path
 from unittest.mock import AsyncMock, patch
 
 import httpx2
@@ -77,6 +80,25 @@ def test_parse_args_requires_profile() -> None:
 def test_parse_args_rejects_invalid_symbol() -> None:
     with pytest.raises(SystemExit):
         parse_args(["--match-id", "abc-123", "--profile", "profiles/aggressive_bot.yml", "--symbol", "Z"])
+
+
+def test_agent_py_runs_as_a_direct_script() -> None:
+    """Regression test: every roadmap issue documents this CLI as
+    `python client/agent.py ...` (not `python -m client.agent`), which
+    broke once the module started using absolute `client.*` imports —
+    running it directly only puts client/ on sys.path, not the project
+    root. Exercises the real subprocess, not just an import."""
+    repo_root = Path(__file__).resolve().parent.parent
+    result = subprocess.run(
+        [sys.executable, str(repo_root / "client" / "agent.py"), "--help"],
+        capture_output=True,
+        text=True,
+        cwd=repo_root,
+        timeout=10,
+    )
+    assert result.returncode == 0
+    assert "No module named" not in result.stderr
+    assert "--profile PROFILE" in result.stdout
 
 
 def test_require_gemini_api_key_exits_when_missing() -> None:
