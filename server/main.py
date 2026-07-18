@@ -3,6 +3,7 @@ import uuid
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from server import auth
 from server.schemas import JoinRequest, JoinResponse, MatchCreateResponse
 
 app = FastAPI(title="Agent Arena", version="01.02.00")
@@ -28,4 +29,5 @@ async def create_match() -> MatchCreateResponse:
 
 @app.post("/api/v1/lobby/join", response_model=JoinResponse)
 async def join_match(request: JoinRequest) -> JoinResponse:
-    return JoinResponse(token=str(uuid.uuid4()))
+    token = auth.issue_token(match_id=request.match_id, player_name=request.player_name)
+    return JoinResponse(token=token)
