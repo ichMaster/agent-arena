@@ -1,3 +1,9 @@
+Version v04.02.00 (2026-07-18)
+---------------------------
+- Created static/app.js implementing client lobby authentication (Host/Join match API calls).
+- Integrated native WebSocket connection establishment and status dot toggle indicators.
+- Added event router structure parsing WS packets and logging updates.
+
 Version v04.01.00 (2026-07-18)
 ---------------------------
 - Scaffolded modular index.html semantic markup.
