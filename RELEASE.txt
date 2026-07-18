@@ -1,3 +1,8 @@
+Version v02.01.00 (2026-07-18)
+---------------------------
+- Created Abstract GameInterface ABC class to establish clean rules boundary.
+- Configured mypy.ini project linter configuration enforcing strict type hint rules on games/.
+
 Version v01.03.00 (2026-07-18)
 ---------------------------
 - Defined Pydantic schemas for WS client actions and server broadcast events.
