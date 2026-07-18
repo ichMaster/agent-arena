@@ -1,3 +1,7 @@
+v02.02.00:
+- Built Tic-Tac-Toe Engine implementing GameInterface.
+- Wrote rigorous tests covering winning permutations and out-of-bounds states.
+
 v02.01.00:
 - Added `games/interface.py` with `GameInterface`.
 - Configured MyPy for strict typing in `games/`.
