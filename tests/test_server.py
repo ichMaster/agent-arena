@@ -4,6 +4,7 @@ from fastapi.testclient import TestClient
 from starlette.websockets import WebSocketDisconnect
 
 from server.main import app
+from server.websockets import manager
 
 # Entered (not `with`-scoped) so the FastAPI lifespan runs once and the DB schema
 # exists for every test function below, which share this single client instance.
@@ -151,3 +152,59 @@ def test_ws_malformed_json_gets_error_reply_without_crashing() -> None:
         websocket.send_json({"action": "chat", "payload": {"message": "still here"}})
         event = websocket.receive_json()
         assert event["event"] == "chat_message"
+
+
+def test_ws_two_players_complete_full_tictactoe_game() -> None:
+    match_id = client.post("/api/v1/lobby/match").json()["match_id"]
+    ada_token = _join(match_id, "Ada")
+    bob_token = _join(match_id, "Bob")
+
+    with (
+        client.websocket_connect(f"/ws/match/{match_id}?token={ada_token}") as ada_ws,
+        client.websocket_connect(f"/ws/match/{match_id}?token={bob_token}") as bob_ws,
+    ):
+        # Ada moves first and is assigned X; Bob is assigned O. X wins the top row (0,1,2).
+        sequence = [(ada_ws, 0), (bob_ws, 3), (ada_ws, 1), (bob_ws, 4), (ada_ws, 2)]
+        for sender_ws, move in sequence:
+            sender_ws.send_json({"action": "submit_move", "payload": {"move": move}})
+            for ws in (ada_ws, bob_ws):
+                update = ws.receive_json()
+                assert update["event"] == "state_update"
+                assert update["payload"]["board"][move] in ("X", "O")
+
+        for ws in (ada_ws, bob_ws):
+            game_over = ws.receive_json()
+            assert game_over == {"event": "game_over", "payload": {"result": "X"}}
+
+    assert manager.connection_count(match_id) == 0
+
+
+def test_ws_invalid_move_is_isolated_and_does_not_crash_server() -> None:
+    match_id = client.post("/api/v1/lobby/match").json()["match_id"]
+    ada_token = _join(match_id, "Ada")
+    bob_token = _join(match_id, "Bob")
+
+    with (
+        client.websocket_connect(f"/ws/match/{match_id}?token={ada_token}") as ada_ws,
+        client.websocket_connect(f"/ws/match/{match_id}?token={bob_token}") as bob_ws,
+    ):
+        # Ada is assigned X on first contact and plays a valid opening move.
+        ada_ws.send_json({"action": "submit_move", "payload": {"move": 0}})
+        ada_ws.receive_json()
+        bob_ws.receive_json()
+
+        # It's now O's turn, but Ada (X) tries to move again — rejected, and only
+        # Ada sees the error; Bob's connection receives nothing for it.
+        ada_ws.send_json({"action": "submit_move", "payload": {"move": 1}})
+        error = ada_ws.receive_json()
+        assert error["event"] == "error"
+        assert "turn" in error["payload"]["detail"].lower()
+
+        # The server is still healthy: Bob (O) can now play normally, and both
+        # participants receive the same broadcast (no crash, no phantom state).
+        bob_ws.send_json({"action": "submit_move", "payload": {"move": 3}})
+        ada_update = ada_ws.receive_json()
+        bob_update = bob_ws.receive_json()
+        assert ada_update == bob_update
+        assert ada_update["event"] == "state_update"
+        assert ada_update["payload"]["board"][3] == "O"

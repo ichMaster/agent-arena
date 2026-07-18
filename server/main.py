@@ -3,6 +3,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from starlette.websockets import WebSocketState
 
 from server import auth
 from server.database import async_session_maker, init_models
@@ -73,5 +74,11 @@ async def match_socket(websocket: WebSocket, match_id: str) -> None:
                 reply = await handle_client_message(repository, match_id, issued.player_name, raw_data)
                 if reply is not None:
                     await manager.send_to(websocket, reply)
+
+                # A game_over broadcast closes every connection in the room server-side
+                # (including this one, mid-loop) via ConnectionManager.close_room — stop
+                # before the next receive_json() hits an already-disconnected socket.
+                if websocket.application_state != WebSocketState.CONNECTED:
+                    break
     except WebSocketDisconnect:
         manager.disconnect(match_id, websocket)
