@@ -72,19 +72,24 @@ def to_ws_url(server_url: str, match_id: str, token: str) -> str:
 
 class AgentSession:
     """Tracks per-connection state (this agent's assigned symbol, a rolling
-    MemoryWindow of recent events) and routes incoming server events. When
-    it's this agent's turn, builds a persona-driven prompt from the memory +
-    current board and hits the LLM. Translating the raw LLM response into an
-    actual submit_move action is reserved for v03.03."""
+    MemoryWindow of recent events, and the live websocket) and routes
+    incoming server events. When it's this agent's turn, builds a
+    persona-driven prompt, asks the LLM for a move, and transmits it (plus
+    its trash-talk) back to the server."""
 
     def __init__(self, player_name: str, llm: LLMClient | None = None, memory_limit: int = 10) -> None:
         self.player_name = player_name
         self.symbol: str | None = None
         self.llm = llm
         self.memory = MemoryWindow(maxlen=memory_limit)
+        self.websocket: Any = None  # set by run_event_loop once connected
 
     def is_my_turn(self, current_turn: Any) -> bool:
         return self.symbol is not None and self.symbol == current_turn
+
+    async def _send(self, action: str, payload: dict[str, Any]) -> None:
+        assert self.websocket is not None
+        await self.websocket.send(json.dumps({"action": action, "payload": payload}))
 
     async def on_my_turn(self, payload: dict[str, Any]) -> None:
         board = payload.get("board", [])
@@ -95,6 +100,9 @@ class AgentSession:
 
         agent_response = await self._decide_move(board, valid_moves)
         print(f"[{self.player_name}] Decided move={agent_response.move} comment={agent_response.comment!r}")
+
+        await self._send("chat", {"message": agent_response.comment})
+        await self._send("submit_move", {"move": agent_response.move})
 
     async def _decide_move(self, board: list[Any], valid_moves: list[int]) -> AgentResponse:
         """Asks the LLM for a move, retrying up to MAX_MOVE_ATTEMPTS times if it
@@ -164,6 +172,7 @@ class AgentSession:
 async def run_event_loop(server_url: str, match_id: str, token: str, session: AgentSession) -> None:
     ws_url = to_ws_url(server_url, match_id, token)
     async with websockets.connect(ws_url) as websocket:
+        session.websocket = websocket
         async for raw_message in websocket:
             try:
                 event = json.loads(raw_message)

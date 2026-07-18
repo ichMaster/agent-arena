@@ -25,6 +25,17 @@ from client.schemas import AgentResponse
 from server.main import app
 
 
+class FakeClientWebSocket:
+    """Stands in for a `websockets` client connection — only the `.send()`
+    surface AgentSession actually uses."""
+
+    def __init__(self) -> None:
+        self.sent: list[dict] = []
+
+    async def send(self, raw_text: str) -> None:
+        self.sent.append(json.loads(raw_text))
+
+
 def test_parse_args_reads_required_and_optional_fields() -> None:
     args = parse_args(["--match-id", "abc-123"])
     assert args.match_id == "abc-123"
@@ -138,6 +149,7 @@ async def test_agent_session_calls_llm_with_built_prompt_on_its_turn() -> None:
     fake_llm.generate_structured_response.return_value = AgentResponse(move=4, comment="The center is mine.")
     session = AgentSession("Ada", llm=fake_llm)
     session.symbol = "X"
+    session.websocket = FakeClientWebSocket()
 
     await session.handle_event(
         {
@@ -168,11 +180,30 @@ async def test_agent_session_handles_malformed_llm_response_without_crashing() -
     )
     session = AgentSession("Ada", llm=fake_llm)
     session.symbol = "X"
+    session.websocket = FakeClientWebSocket()
 
     # Must not raise — a parse failure is logged and swallowed, not fatal.
     await session.handle_event(
         {"event": "state_update", "payload": {"board": [None] * 9, "current_turn": "X", "valid_moves": [0]}}
     )
+
+
+async def test_on_my_turn_sends_chat_then_submit_move_over_the_websocket() -> None:
+    fake_llm = AsyncMock()
+    fake_llm.generate_structured_response.return_value = AgentResponse(move=4, comment="Behold my dominance.")
+    session = AgentSession("Ada", llm=fake_llm)
+    session.symbol = "X"
+    fake_ws = FakeClientWebSocket()
+    session.websocket = fake_ws
+
+    await session.handle_event(
+        {"event": "state_update", "payload": {"board": [None] * 9, "current_turn": "X", "valid_moves": [4]}}
+    )
+
+    assert fake_ws.sent == [
+        {"action": "chat", "payload": {"message": "Behold my dominance."}},
+        {"action": "submit_move", "payload": {"move": 4}},
+    ]
 
 
 async def test_decide_move_accepts_a_valid_first_response() -> None:
@@ -305,6 +336,36 @@ async def test_agent_completes_full_game_over_real_websocket(live_server: str) -
         bob_final = json.loads(await bob_ws.recv())
         assert ada_final == {"event": "game_over", "payload": {"result": "X"}}
         assert bob_final == ada_final
+
+
+async def test_agent_autonomously_sends_move_over_real_websocket_on_its_turn(live_server: str) -> None:
+    async with httpx2.AsyncClient(base_url=live_server, timeout=10.0) as http_client:
+        match_id = (await http_client.post("/api/v1/lobby/match")).json()["match_id"]
+    token = await join_match(live_server, match_id, "Agent")
+
+    fake_llm = AsyncMock()
+    fake_llm.generate_structured_response.return_value = AgentResponse(move=4, comment="I'll start in the center.")
+    session = AgentSession("Agent", llm=fake_llm)
+
+    async with websockets.connect(to_ws_url(live_server, match_id, token)) as ws:
+        session.websocket = ws
+        joined = json.loads(await ws.recv())
+        assert joined["event"] == "joined"
+
+        # Agent is assigned X (first to connect) and X moves first, so
+        # handling its own "joined" event triggers on_my_turn immediately.
+        await session.handle_event(joined)
+
+        chat_echo = json.loads(await ws.recv())
+        move_echo = json.loads(await ws.recv())
+
+    assert chat_echo == {
+        "event": "chat_message",
+        "payload": {"sender": "Agent", "message": "I'll start in the center."},
+    }
+    assert move_echo["event"] == "state_update"
+    assert move_echo["payload"]["board"][4] == "X"
+    assert move_echo["payload"]["last_move"] == {"player": "X", "move": 4}
 
 
 async def test_run_event_loop_connects_and_routes_the_joined_event(live_server: str) -> None:
