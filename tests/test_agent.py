@@ -131,7 +131,7 @@ async def test_run_loads_profile_and_wires_agent_session() -> None:
         await run(args, api_key="fake-key")
 
     fake_join.assert_awaited_once_with(args.server_url, "match-1", "Aggressor-Prime")
-    fake_create_llm_client.assert_called_once_with("gemini-3.1-pro", "fake-key", 1.1)
+    fake_create_llm_client.assert_called_once_with("gemini-3.1-pro-preview", "fake-key", 1.1)
 
     session = captured["session"]
     assert session.player_name == "Aggressor-Prime"

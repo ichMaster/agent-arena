@@ -5,7 +5,7 @@ from google import genai
 from google.genai import types
 from pydantic import BaseModel
 
-GEMINI_MODEL = "gemini-3.1-pro"
+GEMINI_MODEL = "gemini-3.1-pro-preview"
 
 T = TypeVar("T", bound=BaseModel)
 

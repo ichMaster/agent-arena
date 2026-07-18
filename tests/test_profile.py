@@ -26,7 +26,7 @@ def test_agent_profile_rejects_missing_fields() -> None:
 def test_load_aggressive_bot_profile_from_yaml() -> None:
     profile = AgentProfile.load_from_yaml(f"{PROFILES_DIR}/aggressive_bot.yml")
     assert profile.name == "Aggressor-Prime"
-    assert profile.model_type == "gemini-3.1-pro"
+    assert profile.model_type == "gemini-3.1-pro-preview"
     assert isinstance(profile.temperature, float)
     assert profile.memory_limit == 10
 

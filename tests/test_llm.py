@@ -10,6 +10,16 @@ def test_llm_client_cannot_be_instantiated_directly() -> None:
         LLMClient()
 
 
+def test_gemini_model_is_a_real_callable_model_id() -> None:
+    """Regression: GEMINI_MODEL was hardcoded to "gemini-3.1-pro", which does
+    not exist as an API model id — real calls 404'd with "models/gemini-3.1-pro
+    is not found ... or is not supported for generateContent". The real id
+    (confirmed via a live ListModels call, a free metadata request — no
+    generateContent call was made) is "gemini-3.1-pro-preview". Pinned here so
+    a future edit can't silently drift back to the non-existent bare name."""
+    assert GEMINI_MODEL == "gemini-3.1-pro-preview"
+
+
 async def test_gemini_client_returns_text_from_sdk_response() -> None:
     fake_response = MagicMock(text="I claim the center square.")
     with patch("client.llm.genai.Client") as fake_client_cls:
