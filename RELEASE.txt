@@ -1,3 +1,8 @@
+v05.01.00:
+- Created `AgentProfile` Pydantic Schema.
+- Added `PyYAML` support to load and validate YAML persona profiles.
+- Created `aggressive_bot.yml` and `cowardly_bot.yml` profiles.
+
 v04.03.00:
 - Updated `frontend/app.js` to render dynamic board states and respond to human clicks.
 - Added live Chat message rendering logic using WebSocket events.

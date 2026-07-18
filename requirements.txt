@@ -12,3 +12,4 @@ greenlet
 mypy
 python-dotenv
 google-genai
+PyYAML
