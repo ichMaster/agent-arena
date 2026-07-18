@@ -1,3 +1,9 @@
+v03.02.00:
+- Added `google-genai` SDK and created `GeminiClient` implementing `LLMClient` interface.
+- Added `MemoryWindow` to `client/agent.py` to buffer recent WebSocket events.
+- Added dynamic prompt building combining Persona, Memory, Board State, and Valid Moves.
+- Integrated `GeminiClient` to generate moves when it is the Agent's turn.
+
 v03.01.00:
 - Added `client/agent.py` CLI script.
 - Added Lobby HTTP integration for Auth Tokens.

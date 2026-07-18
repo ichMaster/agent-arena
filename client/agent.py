@@ -5,9 +5,21 @@ import websockets
 import json
 import os
 import sys
+from collections import deque
 from dotenv import load_dotenv
+from client.llm import GeminiClient
 
 load_dotenv()
+
+class MemoryWindow:
+    def __init__(self, size: int = 10):
+        self.buffer = deque(maxlen=size)
+
+    def add_event(self, event_str: str):
+        self.buffer.append(event_str)
+
+    def get_context(self) -> str:
+        return "\n".join(self.buffer)
 
 async def main():
     parser = argparse.ArgumentParser(description="Agent Arena CLI Client")
@@ -50,6 +62,9 @@ async def main():
             print("[*] WebSocket connected. Listening for events...")
             
             my_symbol = None
+            memory = MemoryWindow(size=10)
+            llm_client = GeminiClient()
+            persona = "You are an arrogant Tic-Tac-Toe master. Never lose."
             
             async for message in ws:
                 try:
@@ -64,21 +79,44 @@ async def main():
                 if event_type == "connected":
                     my_symbol = data.get("symbol")
                     print(f"[+] Connected to match! Assigned symbol: {my_symbol}")
+                    memory.add_event(f"Connected as {my_symbol}")
                     
                 elif event_type == "state_update":
                     current_turn = data.get("current_turn")
-                    print(f"[~] State Update. Board: {data.get('board')}. Turn: {current_turn}")
+                    board = data.get("board")
+                    print(f"[~] State Update. Board: {board}. Turn: {current_turn}")
+                    memory.add_event(f"State Update: Board={board}, Turn={current_turn}")
+                    
                     if my_symbol and current_turn == my_symbol:
                         print("[!] It is my turn to move!")
+                        valid_moves = [i for i, cell in enumerate(board) if cell is None]
+                        prompt = (
+                            f"{persona}\n\n"
+                            f"Recent History:\n{memory.get_context()}\n\n"
+                            f"Current Board: {board}\n"
+                            f"Your Symbol: {my_symbol}\n"
+                            f"Valid Moves: {valid_moves}\n\n"
+                            "Respond with your thoughts and then your move."
+                        )
+                        print("[*] Hitting Gemini API for next move...")
+                        try:
+                            response_text = await llm_client.generate_response(prompt)
+                            print(f"[GEMINI RESPONSE]\n{response_text}\n[/GEMINI RESPONSE]")
+                        except Exception as e:
+                            print(f"[!] Error calling LLM: {e}")
                         
                 elif event_type == "chat":
-                    print(f"[CHAT] {data}")
+                    msg = data.get("msg", data)
+                    print(f"[CHAT] {msg}")
+                    memory.add_event(f"Chat: {msg}")
                     
                 elif event_type == "error":
                     print(f"[ERROR] {data}")
+                    memory.add_event(f"Error: {data}")
                     
                 elif event_type == "game_over":
                     print(f"[*] GAME OVER! Winner: {data.get('winner')}")
+                    memory.add_event(f"Game Over. Winner: {data.get('winner')}")
                     break
                 else:
                     print(f"[?] Unknown event: {event_type} - {data}")

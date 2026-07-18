@@ -11,3 +11,4 @@ pytest-asyncio
 greenlet
 mypy
 python-dotenv
+google-genai
