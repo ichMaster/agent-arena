@@ -1,5 +1,10 @@
 # Agent Arena — Release Notes
 
+## v05.03.00 — Agent Swarm
+- `scripts/run_swarm.sh`: creates a match, prints the spectator UI link, then launches Aggressor-Prime (X) vs Nervous-Nelly (O) as two background `client/agent.py` processes and tails both logs.
+- Fixed a real bug surfaced while wiring this up: `python client/agent.py ...` (the exact form every roadmap issue documents) crashed with `No module named 'client'` — direct script execution doesn't put the project root on `sys.path`. Fixed in `client/agent.py`, with a subprocess regression test.
+- **Roadmap complete.** All 5 phases, 15 sub-versions, 34 issues implemented and tested (113 tests).
+
 ## v05.02.00 — Generator Engine
 - `client/agent.py` now requires `--profile` and loads it via `AgentProfile.load_from_yaml`; persona, temperature, and memory limit all come from the profile instead of v03's hardcoded defaults.
 - `python client/agent.py --match-id <id> --symbol O --profile profiles/aggressive_bot.yml` — the exact DoD command now works. `--symbol` is an expectation check (warns on mismatch) since the server assigns X/O by connection order.
