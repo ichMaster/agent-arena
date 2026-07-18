@@ -35,14 +35,14 @@ echo "[*] Waiting 5 seconds for spectator to connect before starting AI agents..
 sleep 5
 
 echo "[*] Launching AggressiveBot as symbol X..."
-.venv/bin/python client/agent.py --match-id "$MATCH_ID" --symbol X --profile profiles/aggressive_bot.yml &
+PYTHONPATH=. .venv/bin/python client/agent.py --match-id "$MATCH_ID" --symbol X --profile profiles/aggressive_bot.yml &
 PID_X=$!
 
 # Wait briefly to guarantee X connects first and gets assigned 'X' symbol on the server
 sleep 1.5
 
 echo "[*] Launching CowardlyBot as symbol O..."
-.venv/bin/python client/agent.py --match-id "$MATCH_ID" --symbol O --profile profiles/cowardly_bot.yml &
+PYTHONPATH=. .venv/bin/python client/agent.py --match-id "$MATCH_ID" --symbol O --profile profiles/cowardly_bot.yml &
 PID_O=$!
 
 echo "[+] Both agents started. Monitoring match execution..."
