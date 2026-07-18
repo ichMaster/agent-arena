@@ -83,8 +83,14 @@ async def websocket_endpoint(websocket: WebSocket, match_id: str, token: str = N
         
     await manager.connect(websocket, match_id)
     try:
+        from starlette.websockets import WebSocketState
         while True:
-            data = await websocket.receive_json()
+            if websocket.client_state == WebSocketState.DISCONNECTED:
+                break
+            try:
+                data = await websocket.receive_json()
+            except RuntimeError:
+                break
             try:
                 payload = ClientActionPayload(**data)
                 if payload.action == "chat_message":
@@ -107,4 +113,6 @@ async def websocket_endpoint(websocket: WebSocket, match_id: str, token: str = N
             except ValidationError:
                 await websocket.send_json({"error": "Invalid payload format"})
     except WebSocketDisconnect:
+        manager.disconnect(websocket, match_id)
+    finally:
         manager.disconnect(websocket, match_id)
