@@ -22,7 +22,7 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="Agent Arena", version="05.01.00", lifespan=lifespan)
+app = FastAPI(title="Agent Arena", version="05.02.00", lifespan=lifespan)
 
 app.add_middleware(
     CORSMiddleware,

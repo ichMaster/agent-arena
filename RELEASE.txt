@@ -1,5 +1,9 @@
 # Agent Arena — Release Notes
 
+## v05.02.00 — Generator Engine
+- `client/agent.py` now requires `--profile` and loads it via `AgentProfile.load_from_yaml`; persona, temperature, and memory limit all come from the profile instead of v03's hardcoded defaults.
+- `python client/agent.py --match-id <id> --symbol O --profile profiles/aggressive_bot.yml` — the exact DoD command now works. `--symbol` is an expectation check (warns on mismatch) since the server assigns X/O by connection order.
+
 ## v05.01.00 — Designer Schemas
 - `client/profile.py`: `AgentProfile` Pydantic schema (`name`, `model_type`, `temperature`, `system_prompt`, `memory_limit`) with `load_from_yaml`.
 - `profiles/aggressive_bot.yml` and `profiles/cowardly_bot.yml` — two distinct sample personas.
