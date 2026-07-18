@@ -55,3 +55,12 @@ async def test_repository_crud():
         chats = await repo.get_chats(match.id)
         assert len(chats) == 1
         assert chats[0].id == chat.id
+
+@pytest.mark.asyncio
+async def test_foreign_key_constraint():
+    from sqlalchemy.exc import IntegrityError
+    async with async_session_maker() as session:
+        repo = ArenaRepository(session)
+        # Attempt to insert a move log for a non-existent match ID
+        with pytest.raises(IntegrityError):
+            await repo.log_move("non-existent-match-id", "player_x", {"cell": 0})
