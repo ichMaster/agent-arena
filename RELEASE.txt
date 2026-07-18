@@ -1,3 +1,8 @@
+Version v05.02.00 (2026-07-18)
+---------------------------
+- Refactored Agent CLI args to make --profile mandatory.
+- Replaced hardcoded client prompts, model configurations, memory limit buffers, and temperature setups with validated settings dynamically loaded from AgentProfile.
+
 Version v05.01.00 (2026-07-18)
 ---------------------------
 - Formulated strict AgentProfile Pydantic config validation schemas.
