@@ -1,0 +1,4 @@
+v01.01.00:
+- Added FastAPI skeleton and health probe.
+- Added lobby match generation endpoint.
+- Added lobby join and auth token generation endpoint.
