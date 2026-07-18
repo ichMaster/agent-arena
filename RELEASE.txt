@@ -1,5 +1,10 @@
 # Agent Arena — Release Notes
 
+## v03.01.00 — Agent CLI Skeleton & WebSocket Loop
+- `client/agent.py`: CLI (`--match-id`, `--server-url`, `--player-name`) that loads `.env` (fails fast if `GEMINI_API_KEY` is missing), joins the lobby over HTTP, and runs a real-time `AgentSession` event loop over `websockets`.
+- New WS protocol event: server sends a one-time `joined` event (assigned symbol + board/turn) right after every connection accepts, so a client can know whose turn it is before ever moving — symbol assignment moved from first-move time to connect time.
+- Verified against a real `uvicorn` server (not just the ASGI test transport): two agent sessions connect, learn X/O, and play a full game to `game_over` over an actual socket.
+
 ## v02.03.00 — Match Orchestrator & WS Integration
 - `server/match.py`: `Match` holds a live `TicTacToe` instance and lazily assigns X/O symbols to the first two distinct player names to act.
 - WS router handles `submit_move`: valid moves persist + broadcast `state_update`; invalid/out-of-turn/third-player moves get an isolated `error`; a completed game broadcasts `game_over` and gracefully closes every connection in the room.
