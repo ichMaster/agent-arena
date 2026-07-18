@@ -89,6 +89,55 @@ def test_ws_chat_action_is_broadcast_to_room() -> None:
         assert event == {"event": "chat_message", "payload": {"sender": "Ada", "message": "hello room"}}
 
 
+def test_ws_two_concurrent_clients_exchange_chat_in_same_match() -> None:
+    match_id = client.post("/api/v1/lobby/match").json()["match_id"]
+    ada_token = _join(match_id, "Ada")
+    bob_token = _join(match_id, "Bob")
+
+    with (
+        client.websocket_connect(f"/ws/match/{match_id}?token={ada_token}") as ada_ws,
+        client.websocket_connect(f"/ws/match/{match_id}?token={bob_token}") as bob_ws,
+    ):
+        ada_ws.send_json({"action": "chat", "payload": {"message": "hi from Ada"}})
+        assert ada_ws.receive_json() == {
+            "event": "chat_message",
+            "payload": {"sender": "Ada", "message": "hi from Ada"},
+        }
+        assert bob_ws.receive_json() == {
+            "event": "chat_message",
+            "payload": {"sender": "Ada", "message": "hi from Ada"},
+        }
+
+        bob_ws.send_json({"action": "chat", "payload": {"message": "hi from Bob"}})
+        assert ada_ws.receive_json() == {
+            "event": "chat_message",
+            "payload": {"sender": "Bob", "message": "hi from Bob"},
+        }
+        assert bob_ws.receive_json() == {
+            "event": "chat_message",
+            "payload": {"sender": "Bob", "message": "hi from Bob"},
+        }
+
+
+def test_ws_clients_in_different_matches_do_not_cross_talk() -> None:
+    match_a = client.post("/api/v1/lobby/match").json()["match_id"]
+    match_b = client.post("/api/v1/lobby/match").json()["match_id"]
+    token_a = _join(match_a, "Ada")
+    token_b = _join(match_b, "Bob")
+
+    with (
+        client.websocket_connect(f"/ws/match/{match_a}?token={token_a}") as ws_a,
+        client.websocket_connect(f"/ws/match/{match_b}?token={token_b}") as ws_b,
+    ):
+        ws_a.send_json({"action": "chat", "payload": {"message": "only for match A"}})
+        assert ws_a.receive_json()["payload"]["message"] == "only for match A"
+
+        ws_b.send_json({"action": "chat", "payload": {"message": "ping"}})
+        assert ws_b.receive_json()["payload"]["message"] == "ping"
+        # ws_b should never have received match A's message; if it had, it would
+        # have been consumed by the receive_json() call above instead of "ping".
+
+
 def test_ws_malformed_json_gets_error_reply_without_crashing() -> None:
     match_id = client.post("/api/v1/lobby/match").json()["match_id"]
     token = _join(match_id, "Ada")
