@@ -58,10 +58,14 @@ function connectSocket() {
     ws.onopen = () => {
         els.dot.classList.add('connected');
         els.statusText.textContent = 'Connected';
+        els.chatInput.disabled = false;
+        els.sendBtn.disabled = false;
     };
     ws.onclose = () => {
         els.dot.classList.remove('connected');
         els.statusText.textContent = 'Disconnected';
+        els.chatInput.disabled = true;
+        els.sendBtn.disabled = true;
     };
     ws.onerror = (err) => {
         console.error('WebSocket error:', err);
@@ -83,14 +87,46 @@ function routeEvent({ event, payload }) {
             renderBoard(payload.board, payload.current_turn, payload.valid_moves);
             break;
         case 'chat_message':
+            renderChat(payload);
+            break;
         case 'game_over':
+            handleGameOver(payload);
+            break;
         case 'error':
-            // Wired up in v04.03/ARENA-031.
-            console.log(`[${event}]`, payload);
+            addMessage(`Error: ${payload.detail}`, 'system');
             break;
         default:
             console.warn('Unknown event type:', event, payload);
     }
+}
+
+function renderChat({ sender, message }) {
+    const type = sender === myPlayerName ? 'user' : 'agent';
+    addMessage(message, type, sender);
+}
+
+function addMessage(text, type, name = '') {
+    const div = document.createElement('div');
+    div.className = `msg ${type}`;
+    if (type === 'agent') {
+        const nameEl = document.createElement('span');
+        nameEl.className = 'name';
+        nameEl.textContent = name;
+        div.appendChild(nameEl);
+    }
+    div.appendChild(document.createTextNode(text));
+    els.log.appendChild(div);
+    els.log.scrollTop = els.log.scrollHeight;
+}
+
+function handleGameOver({ result }) {
+    isGameActive = false;
+    for (let i = 0; i < 9; i++) {
+        document.getElementById(`cell-${i}`).classList.add('disabled');
+    }
+    const resultText = result === 'draw' ? "It's a draw." : `${result} wins!`;
+    els.statusText.textContent = `Game Over — ${resultText}`;
+    addMessage(`Game over. ${resultText}`, 'system');
 }
 
 function initPlayerCards(symbol) {
@@ -135,3 +171,11 @@ for (let i = 0; i < 9; i++) {
 
 els.hostBtn.addEventListener('click', hostMatch);
 els.joinBtn.addEventListener('click', joinExistingMatch);
+
+els.chatForm.addEventListener('submit', (submitEvent) => {
+    submitEvent.preventDefault();
+    const text = els.chatInput.value.trim();
+    if (!text || !ws || ws.readyState !== WebSocket.OPEN) return;
+    ws.send(JSON.stringify({ action: 'chat', payload: { message: text } }));
+    els.chatInput.value = '';
+});

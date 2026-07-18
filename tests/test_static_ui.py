@@ -27,6 +27,8 @@ def test_ui_app_js_is_served() -> None:
     assert "routeEvent" in response.text
     assert "renderBoard" in response.text
     assert "handleCellClick" in response.text
+    assert "renderChat" in response.text
+    assert "handleGameOver" in response.text
 
 
 def test_ui_board_cells_start_disabled() -> None:
