@@ -124,6 +124,8 @@ async def test_websocket_chat_persistence_and_broadcast():
     
     # Connect
     with client.websocket_connect(f"/ws/match/{match_id}?token={token}") as websocket:
+        init_state = websocket.receive_json()
+        assert init_state["event"] == "state_update"
         # Send a chat message action
         action_payload = {
             "action": "chat_message",
@@ -170,7 +172,13 @@ async def test_websocket_concurrent_clients(server_port):
     url2 = f"ws://127.0.0.1:{server_port}/ws/match/{match_id}?token={token2}"
     
     async with websockets.connect(url1) as ws1:
+        init_state1 = json.loads(await ws1.recv())
+        assert init_state1["event"] == "state_update"
+        
         async with websockets.connect(url2) as ws2:
+            init_state2 = json.loads(await ws2.recv())
+            assert init_state2["event"] == "state_update"
+            
             # Client 1 sends a message
             action1 = {
                 "action": "chat_message",
@@ -208,3 +216,95 @@ async def test_websocket_concurrent_clients(server_port):
             assert res2_new["event"] == "chat_message"
             assert res2_new["data"]["sender"] == "Client 2"
             assert res2_new["data"]["message"] == "Hello from 2"
+
+@pytest.mark.asyncio
+async def test_websocket_match_lifecycle(server_port):
+    # Create match and persist to DB
+    resp_match = client.post("/api/v1/lobby/match")
+    match_id = resp_match.json()["match_id"]
+    
+    async with async_session_maker() as session:
+        repo = ArenaRepository(session)
+        from server.models import MatchModel, MatchStatus
+        match = MatchModel(id=match_id, status=MatchStatus.PENDING)
+        session.add(match)
+        await session.commit()
+        
+    token1 = str(uuid.uuid4())
+    token2 = str(uuid.uuid4())
+    
+    url1 = f"ws://127.0.0.1:{server_port}/ws/match/{match_id}?token={token1}"
+    url2 = f"ws://127.0.0.1:{server_port}/ws/match/{match_id}?token={token2}"
+    
+    async with websockets.connect(url1) as ws1:
+        # P1 receives initial state on connection
+        init_state1 = json.loads(await ws1.recv())
+        assert init_state1["event"] == "state_update"
+        assert init_state1["data"]["board"] == [None] * 9
+        
+        async with websockets.connect(url2) as ws2:
+            # P2 receives initial state on connection
+            init_state2 = json.loads(await ws2.recv())
+            assert init_state2["event"] == "state_update"
+            assert init_state2["data"]["board"] == [None] * 9
+            
+            # P1 sends invalid move (out of bounds)
+            await ws1.send(json.dumps({"action": "submit_move", "payload": {"move": 9}}))
+            err_p1 = json.loads(await ws1.recv())
+            assert "error" in err_p1
+            
+            # P1 sends valid move (0)
+            await ws1.send(json.dumps({"action": "submit_move", "payload": {"move": 0}}))
+            
+            # Both should receive state update (cell 0 is X)
+            state_p1 = json.loads(await ws1.recv())
+            state_p2 = json.loads(await ws2.recv())
+            assert state_p1["event"] == "state_update"
+            assert state_p1["data"]["board"][0] == "X"
+            assert state_p2["event"] == "state_update"
+            assert state_p2["data"]["board"][0] == "X"
+            
+            # P2 sends valid move (1)
+            await ws2.send(json.dumps({"action": "submit_move", "payload": {"move": 1}}))
+            state_p1 = json.loads(await ws1.recv())
+            state_p2 = json.loads(await ws2.recv())
+            assert state_p1["data"]["board"][1] == "O"
+            
+            # P1 sends move (4)
+            await ws1.send(json.dumps({"action": "submit_move", "payload": {"move": 4}}))
+            await ws1.recv()
+            await ws2.recv()
+            
+            # P2 sends move (3)
+            await ws2.send(json.dumps({"action": "submit_move", "payload": {"move": 3}}))
+            await ws1.recv()
+            await ws2.recv()
+            
+            # P1 sends winning move (8)
+            await ws1.send(json.dumps({"action": "submit_move", "payload": {"move": 8}}))
+            
+            # Both receive final state update
+            state_p1 = json.loads(await ws1.recv())
+            state_p2 = json.loads(await ws2.recv())
+            assert state_p1["data"]["board"][8] == "X"
+            
+            # Both receive game_over event
+            go_p1 = json.loads(await ws1.recv())
+            go_p2 = json.loads(await ws2.recv())
+            assert go_p1["event"] == "game_over"
+            assert go_p1["data"]["winner"] == "X"
+            assert go_p2["event"] == "game_over"
+            assert go_p2["data"]["winner"] == "X"
+            
+            # Connection closes automatically
+            try:
+                await ws1.recv()
+                assert False, "Connection ws1 should have been closed"
+            except websockets.exceptions.ConnectionClosed:
+                pass
+                
+            try:
+                await ws2.recv()
+                assert False, "Connection ws2 should have been closed"
+            except websockets.exceptions.ConnectionClosed:
+                pass
