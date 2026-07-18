@@ -11,6 +11,7 @@ const els = {
     joinBtn: document.getElementById('join-match-btn'),
 };
 
+let ws = null;
 let currentMatchId = null;
 let myToken = null;
 let myPlayerName = null;
@@ -44,7 +45,45 @@ async function promptAndJoin() {
     }
     const data = await response.json();
     myToken = data.token;
-    console.log('Auth token acquired for match', currentMatchId);
+    connectSocket();
+}
+
+function connectSocket() {
+    const wsScheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    const url = `${wsScheme}://${window.location.host}/ws/match/${currentMatchId}?token=${myToken}`;
+    ws = new WebSocket(url);
+
+    ws.onopen = () => {
+        els.dot.classList.add('connected');
+        els.statusText.textContent = 'Connected';
+    };
+    ws.onclose = () => {
+        els.dot.classList.remove('connected');
+        els.statusText.textContent = 'Disconnected';
+    };
+    ws.onerror = (err) => {
+        console.error('WebSocket error:', err);
+    };
+    ws.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        routeEvent(data);
+    };
+}
+
+function routeEvent({ event, payload }) {
+    // Rendering the board/chat from these events is implemented in v04.03
+    // (renderBoard/renderChat); this router just dispatches and logs for now.
+    switch (event) {
+        case 'joined':
+        case 'state_update':
+        case 'chat_message':
+        case 'game_over':
+        case 'error':
+            console.log(`[${event}]`, payload);
+            break;
+        default:
+            console.warn('Unknown event type:', event, payload);
+    }
 }
 
 els.hostBtn.addEventListener('click', hostMatch);

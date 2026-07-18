@@ -23,3 +23,5 @@ def test_ui_app_js_is_served() -> None:
     assert response.status_code == 200
     assert "hostMatch" in response.text
     assert "joinExistingMatch" in response.text
+    assert "connectSocket" in response.text
+    assert "routeEvent" in response.text
