@@ -19,3 +19,16 @@ def test_create_match_returns_valid_uuid() -> None:
     body = response.json()
     assert "match_id" in body
     assert uuid.UUID(body["match_id"]).version == 4
+
+
+def test_join_match_returns_token() -> None:
+    response = client.post(
+        "/api/v1/lobby/join", json={"match_id": str(uuid.uuid4()), "player_name": "Ada"}
+    )
+    assert response.status_code == 200
+    assert "token" in response.json()
+
+
+def test_join_match_rejects_missing_fields() -> None:
+    response = client.post("/api/v1/lobby/join", json={"match_id": str(uuid.uuid4())})
+    assert response.status_code == 422
