@@ -22,7 +22,7 @@ class LLMClient(ABC):
         pass
 
 class GeminiClient(LLMClient):
-    def __init__(self, model_id: str = "gemini-3.1-pro") -> None:
+    def __init__(self, model_id: str = "gemini-3.1-pro", temperature: float | None = None) -> None:
         # genai.Client picks up GEMINI_API_KEY from environment variables automatically.
         # But we can also pass it explicitly if available.
         api_key = os.getenv("GEMINI_API_KEY")
@@ -31,6 +31,7 @@ class GeminiClient(LLMClient):
         else:
             self.client = genai.Client()
         self.model_id = model_id
+        self.temperature = temperature
 
     async def generate_response(self, prompt: str) -> str:
         response = await self.client.aio.models.generate_content(
@@ -40,13 +41,17 @@ class GeminiClient(LLMClient):
         return str(response.text)
 
     async def generate_structured_response(self, prompt: str, response_schema: Type[T]) -> T:
+        from google.genai import types
+        config = types.GenerateContentConfig(
+            response_mime_type="application/json",
+            response_schema=response_schema,
+            temperature=self.temperature
+        )
+            
         response = await self.client.aio.models.generate_content(
             model=self.model_id,
             contents=prompt,
-            config={
-                "response_mime_type": "application/json",
-                "response_schema": response_schema,
-            }
+            config=config
         )
         parsed = response.parsed
         if parsed is None:

@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from pydantic import BaseModel
 from client.llm import GeminiClient
 from client.memory import MemoryWindow
+from client.profile import AgentProfile
 
 # Load environment variables (such as GEMINI_API_KEY)
 load_dotenv()
@@ -35,15 +36,20 @@ async def get_auth_token(base_url: str, match_id: str, player_name: str) -> str:
         token = response.json()["token"]
         return str(token)
 
-async def run_agent(match_id: str, server_url: str, player_name: str, symbol: str) -> None:
-    print(f"[*] Starting Agent Client...")
+async def run_agent(match_id: str, server_url: str, symbol: str, profile_path: str) -> None:
+    print(f"[*] Loading profile config: {profile_path}...")
+    profile = AgentProfile.load_from_yaml(profile_path)
+    
+    print(f"[*] Starting Agent Client: '{profile.name}'...")
+    print(f"[*] Model ID: {profile.model_type}")
+    print(f"[*] Temperature: {profile.temperature}")
+    print(f"[*] Memory Limit: {profile.memory_limit}")
     print(f"[*] Match ID: {match_id}")
     print(f"[*] Server URL: {server_url}")
-    print(f"[*] Player Name: {player_name}")
     print(f"[*] Symbol: {symbol}")
     
-    memory = MemoryWindow(limit=10)
-    llm_client = GeminiClient()
+    memory = MemoryWindow(limit=profile.memory_limit)
+    llm_client = GeminiClient(model_id=profile.model_type, temperature=profile.temperature)
     
     # Check for GEMINI_API_KEY
     gemini_key = os.getenv("GEMINI_API_KEY")
@@ -53,7 +59,7 @@ async def run_agent(match_id: str, server_url: str, player_name: str, symbol: st
         print("[!] Warning: GEMINI_API_KEY not found in environment")
         
     try:
-        token = await get_auth_token(server_url, match_id, player_name)
+        token = await get_auth_token(server_url, match_id, profile.name)
         print(f"[+] Acquired Auth Token: {token}")
     except Exception as e:
         print(f"[-] HTTP Error: {e}")
@@ -103,7 +109,7 @@ async def run_agent(match_id: str, server_url: str, player_name: str, symbol: st
                         
                         for attempt in range(max_attempts):
                             prompt = f"""
-System Persona: You are an arrogant Tic-Tac-Toe master. Never lose.
+System Persona: {profile.system_prompt}
 
 Recent History:
 {memory.get_context()}
@@ -141,7 +147,7 @@ It is your turn. Please state your move (0-8) and provide a short comment that f
                         chat_payload = {
                             "action": "chat_message",
                             "payload": {
-                                "sender": player_name,
+                                "sender": profile.name,
                                 "message": chosen_comment
                             }
                         }
@@ -180,12 +186,12 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Agent Arena CLI Client")
     parser.add_argument("--match-id", required=True, help="The UUID of the match to join")
     parser.add_argument("--url", default="http://localhost:8000", help="Base URL of the Game Server")
-    parser.add_argument("--player-name", default="Agent", help="The name of the player")
     parser.add_argument("--symbol", default="X", help="Symbol the agent plays as (X or O)")
+    parser.add_argument("--profile", required=True, help="Path to the YAML agent profile definition")
     
     args = parser.parse_args()
     
     try:
-        asyncio.run(run_agent(args.match_id, args.url, args.player_name, args.symbol))
+        asyncio.run(run_agent(args.match_id, args.url, args.symbol, args.profile))
     except KeyboardInterrupt:
         print("\n[*] Shutting down Agent Client...")

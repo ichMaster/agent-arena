@@ -36,7 +36,7 @@ async def test_agent_run_lifecycle(server_port):
     
     with patch("client.agent.GeminiClient", return_value=mock_gemini):
         # Run the agent task (will be X)
-        agent_task = asyncio.create_task(run_agent(match_id, server_url, "Agent_X", "X"))
+        agent_task = asyncio.create_task(run_agent(match_id, server_url, "X", "profiles/aggressive_bot.yml"))
         
         # Wait a tiny bit for the agent to establish connection
         await asyncio.sleep(0.1)
@@ -54,7 +54,7 @@ async def test_agent_run_lifecycle(server_port):
             # Now wait for the agent to finish sleeping and send actions
             chat_evt = json.loads(await ws_spec.recv())
             assert chat_evt["event"] == "chat_message"
-            assert chat_evt["data"]["sender"] == "Agent_X"
+            assert chat_evt["data"]["sender"] == "AggressiveBot"
             assert chat_evt["data"]["message"] == "I am superior."
             
             # Spectator receives state update showing move applied
