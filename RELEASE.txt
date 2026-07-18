@@ -1,3 +1,8 @@
+v04.03.00:
+- Updated `frontend/app.js` to render dynamic board states and respond to human clicks.
+- Added live Chat message rendering logic using WebSocket events.
+- Handled Game Over UI state, disabling inputs upon completion.
+
 v04.02.00:
 - Added `frontend/app.js` with HTTP Lobby Integration (`/match`, `/join`).
 - Established native WebSocket connection with Event Router pattern.

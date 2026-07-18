@@ -1,6 +1,9 @@
 let ws = null;
 let currentMatchId = null;
 let currentToken = null;
+let mySymbol = null;
+let currentTurn = "X";
+let gameOver = false;
 
 const API_BASE = "http://localhost:8000/api/v1";
 const WS_BASE = "ws://localhost:8000/ws";
@@ -11,6 +14,41 @@ const btnJoin = document.getElementById('btn-join');
 const inputJoinId = document.getElementById('join-match-id');
 const matchIdDisplay = document.getElementById('match-id-display');
 const connectionDot = document.getElementById('connection-dot');
+const cells = document.querySelectorAll('.cell');
+const chatMessages = document.getElementById('chat-messages');
+const chatInput = document.getElementById('chat-input');
+const btnSendChat = document.getElementById('btn-send-chat');
+const playerCards = document.querySelectorAll('.player-card');
+
+function renderBoard(board) {
+    cells.forEach((cell, index) => {
+        const value = board[index];
+        cell.innerHTML = '';
+        if (value) {
+            const span = document.createElement('span');
+            span.className = `symbol-${value.toLowerCase()}`;
+            span.innerText = value;
+            cell.appendChild(span);
+        }
+    });
+}
+
+function updateTurnUI() {
+    playerCards.forEach(card => card.classList.remove('active-turn'));
+    if (currentTurn === "X") {
+        playerCards[0].classList.add('active-turn');
+    } else if (currentTurn === "O") {
+        playerCards[1].classList.add('active-turn');
+    }
+}
+
+function renderChat(messageData, senderClass) {
+    const div = document.createElement('div');
+    div.className = `message ${senderClass}`;
+    div.innerHTML = messageData;
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+}
 
 async function hostMatch() {
     try {
@@ -64,11 +102,17 @@ function connectWebSocket() {
     ws.onopen = () => {
         connectionDot.className = "dot connected";
         console.log("WebSocket connected.");
+        chatInput.disabled = false;
+        btnSendChat.disabled = false;
+        renderChat("Connected to server.", "system-msg");
+        gameOver = false;
     };
     
     ws.onclose = () => {
         connectionDot.className = "dot disconnected";
         console.log("WebSocket disconnected.");
+        chatInput.disabled = true;
+        btnSendChat.disabled = true;
     };
     
     ws.onmessage = (event) => {
@@ -78,19 +122,27 @@ function connectWebSocket() {
             
             switch (event_type) {
                 case 'connected':
-                    console.log("Connected event:", data);
+                    mySymbol = data.symbol;
+                    renderChat(`Assigned symbol: ${mySymbol}`, "system-msg");
+                    renderBoard(data.state.board);
+                    currentTurn = data.state.current_turn;
+                    updateTurnUI();
                     break;
                 case 'state_update':
-                    console.log("State update:", data);
+                    renderBoard(data.board);
+                    currentTurn = data.current_turn;
+                    updateTurnUI();
                     break;
                 case 'chat':
-                    console.log("Chat message:", data);
+                    renderChat(`<strong>User/Agent:</strong> ${data.message || data}`, "agent-msg");
                     break;
                 case 'game_over':
-                    console.log("Game over:", data);
+                    gameOver = true;
+                    renderChat(`GAME OVER! Winner: ${data.winner}`, "system-msg");
+                    matchIdDisplay.innerText += ` (Winner: ${data.winner})`;
                     break;
                 case 'error':
-                    console.error("Server error:", data);
+                    renderChat(`Error: ${data.message}`, "system-msg");
                     break;
                 default:
                     console.log("Unknown event:", payload);
@@ -104,3 +156,31 @@ function connectWebSocket() {
 // Bindings
 btnHost.addEventListener('click', hostMatch);
 btnJoin.addEventListener('click', () => joinExistingMatch());
+
+cells.forEach(cell => {
+    cell.addEventListener('click', () => {
+        if (gameOver || currentTurn !== mySymbol) return;
+        const index = parseInt(cell.dataset.index);
+        if (ws) {
+            ws.send(JSON.stringify({
+                action: 'submit_move',
+                payload: { move: index }
+            }));
+        }
+    });
+});
+
+btnSendChat.addEventListener('click', () => {
+    const msg = chatInput.value.trim();
+    if (msg && ws) {
+        ws.send(JSON.stringify({
+            action: 'chat',
+            payload: { message: msg }
+        }));
+        chatInput.value = '';
+    }
+});
+
+chatInput.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') btnSendChat.click();
+});
