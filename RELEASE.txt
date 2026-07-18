@@ -1,0 +1,7 @@
+# Agent Arena — Release Notes
+
+## v01.01.00 — Server Skeleton & Lobby
+- FastAPI app instance with CORS middleware for local development.
+- `GET /api/v1/health` liveness probe.
+- `POST /api/v1/lobby/match` — generates a UUID4 `match_id`.
+- `POST /api/v1/lobby/join` — accepts `match_id`/`player_name`, returns an opaque auth token.
