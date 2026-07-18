@@ -51,6 +51,28 @@ class ConnectionManager:
 manager = ConnectionManager()
 
 
+async def send_joined_event(match_id: str, websocket: WebSocket, player_name: str) -> None:
+    """Sent once, right after a connection is accepted. A client cannot tell
+    whose turn it is from a bare `current_turn` broadcast without first
+    learning its own assigned symbol — this closes that gap before the
+    client ever needs to act."""
+    match = get_or_create_match(match_id)
+    symbol = match.assign_symbol(player_name)
+    state = match.game.get_state()
+    await manager.send_to(
+        websocket,
+        ServerPushEvent(
+            event="joined",
+            payload={
+                "symbol": symbol,
+                "board": state["board"],
+                "current_turn": match.current_turn,
+                "valid_moves": match.game.get_valid_moves(),
+            },
+        ),
+    )
+
+
 async def handle_client_message(
     repository: Repository, match_id: str, sender: str, raw_data: dict[str, Any]
 ) -> ServerPushEvent | None:

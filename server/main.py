@@ -9,7 +9,7 @@ from server import auth
 from server.database import async_session_maker, init_models
 from server.repository import Repository
 from server.schemas import JoinRequest, JoinResponse, MatchCreateResponse
-from server.websockets import ServerPushEvent, handle_client_message, manager
+from server.websockets import ServerPushEvent, handle_client_message, manager, send_joined_event
 
 TOKEN_MISSING_OR_INVALID = 4001
 
@@ -59,6 +59,7 @@ async def match_socket(websocket: WebSocket, match_id: str) -> None:
         return
 
     await manager.connect(match_id, websocket)
+    await send_joined_event(match_id, websocket, issued.player_name)
     try:
         async with async_session_maker() as session:
             repository = Repository(session)

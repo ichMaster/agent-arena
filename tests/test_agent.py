@@ -1,10 +1,17 @@
+import asyncio
+import json
 import os
+import socket
+import threading
+import time
 from unittest.mock import patch
 
 import httpx2
 import pytest
+import uvicorn
+import websockets
 
-from client.agent import join_match, parse_args, require_gemini_api_key
+from client.agent import AgentSession, join_match, parse_args, require_gemini_api_key, run_event_loop, to_ws_url
 from server.main import app
 
 
@@ -53,3 +60,136 @@ async def test_join_match_returns_token_from_real_app() -> None:
 async def test_join_match_exits_on_connection_error() -> None:
     with pytest.raises(SystemExit):
         await join_match("http://127.0.0.1:1", "some-match", "Ada")
+
+
+def test_to_ws_url_converts_http_scheme_and_appends_path() -> None:
+    assert to_ws_url("http://localhost:8000", "match-1", "tok") == "ws://localhost:8000/ws/match/match-1?token=tok"
+
+
+def test_to_ws_url_converts_https_scheme() -> None:
+    assert to_ws_url("https://arena.example.com", "match-1", "tok") == (
+        "wss://arena.example.com/ws/match/match-1?token=tok"
+    )
+
+
+async def test_agent_session_learns_symbol_from_joined_event() -> None:
+    session = AgentSession("Ada")
+    assert session.symbol is None
+    await session.handle_event({"event": "joined", "payload": {"symbol": "X", "board": [None] * 9, "current_turn": "X"}})
+    assert session.symbol == "X"
+
+
+async def test_agent_session_detects_its_turn_from_state_update() -> None:
+    session = AgentSession("Ada")
+    session.symbol = "O"
+    turns_taken = []
+
+    async def fake_on_my_turn(payload: dict) -> None:
+        turns_taken.append(payload)
+
+    session.on_my_turn = fake_on_my_turn  # type: ignore[method-assign]
+
+    await session.handle_event({"event": "state_update", "payload": {"board": [None] * 9, "current_turn": "X"}})
+    assert turns_taken == []
+
+    await session.handle_event({"event": "state_update", "payload": {"board": [None] * 9, "current_turn": "O"}})
+    assert len(turns_taken) == 1
+
+
+async def test_agent_session_ignores_events_before_symbol_is_known() -> None:
+    session = AgentSession("Ada")
+    called = []
+
+    async def fake_on_my_turn(payload: dict) -> None:
+        called.append(payload)
+
+    session.on_my_turn = fake_on_my_turn  # type: ignore[method-assign]
+    # current_turn happens to be None (matching an unset symbol) — must not trigger a turn.
+    await session.handle_event({"event": "state_update", "payload": {"current_turn": None}})
+    assert called == []
+
+
+def _free_port() -> int:
+    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+        s.bind(("127.0.0.1", 0))
+        return int(s.getsockname()[1])
+
+
+@pytest.fixture
+def live_server():
+    """Runs the real FastAPI app under real uvicorn on a background thread,
+    bound to loopback — needed because the `websockets` client library speaks
+    raw ws:// over a socket and can't be pointed at an ASGI transport."""
+    port = _free_port()
+    config = uvicorn.Config(app, host="127.0.0.1", port=port, log_level="error", lifespan="on")
+    server = uvicorn.Server(config)
+    thread = threading.Thread(target=server.run, daemon=True)
+    thread.start()
+
+    base_url = f"http://127.0.0.1:{port}"
+    deadline = time.monotonic() + 5
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection(("127.0.0.1", port), timeout=0.2):
+                break
+        except OSError:
+            time.sleep(0.05)
+    else:
+        raise RuntimeError("live_server did not start in time")
+
+    yield base_url
+
+    server.should_exit = True
+    thread.join(timeout=5)
+
+
+async def test_agent_completes_full_game_over_real_websocket(live_server: str) -> None:
+    async with httpx2.AsyncClient(base_url=live_server, timeout=10.0) as http_client:
+        match_id = (await http_client.post("/api/v1/lobby/match")).json()["match_id"]
+
+    ada_token = await join_match(live_server, match_id, "Ada")
+    bob_token = await join_match(live_server, match_id, "Bob")
+
+    ada_session, bob_session = AgentSession("Ada"), AgentSession("Bob")
+    ada_ws_url = to_ws_url(live_server, match_id, ada_token)
+    bob_ws_url = to_ws_url(live_server, match_id, bob_token)
+
+    async with websockets.connect(ada_ws_url) as ada_ws, websockets.connect(bob_ws_url) as bob_ws:
+        await ada_session.handle_event(json.loads(await ada_ws.recv()))
+        await bob_session.handle_event(json.loads(await bob_ws.recv()))
+
+        # Ada connects first, so she's assigned X and moves first; Bob is O.
+        assert ada_session.symbol == "X"
+        assert bob_session.symbol == "O"
+
+        # X plays the top row (0,1,2); O plays 3,4 — X wins. Each move's
+        # state_update (and the sockets it goes to) is drained after sending
+        # so the two connections never fall out of lockstep.
+        sequence = [(ada_ws, bob_ws, 0), (bob_ws, ada_ws, 3), (ada_ws, bob_ws, 1), (bob_ws, ada_ws, 4), (ada_ws, bob_ws, 2)]
+        for mover_ws, other_ws, move in sequence:
+            await mover_ws.send(json.dumps({"action": "submit_move", "payload": {"move": move}}))
+            assert json.loads(await mover_ws.recv())["event"] == "state_update"
+            assert json.loads(await other_ws.recv())["event"] == "state_update"
+
+        ada_final = json.loads(await ada_ws.recv())
+        bob_final = json.loads(await bob_ws.recv())
+        assert ada_final == {"event": "game_over", "payload": {"result": "X"}}
+        assert bob_final == ada_final
+
+
+async def test_run_event_loop_connects_and_routes_the_joined_event(live_server: str) -> None:
+    async with httpx2.AsyncClient(base_url=live_server, timeout=10.0) as http_client:
+        match_id = (await http_client.post("/api/v1/lobby/match")).json()["match_id"]
+    token = await join_match(live_server, match_id, "Ada")
+
+    session = AgentSession("Ada")
+    task = asyncio.create_task(run_event_loop(live_server, match_id, token, session))
+    try:
+        deadline = time.monotonic() + 5
+        while session.symbol is None and time.monotonic() < deadline:
+            await asyncio.sleep(0.02)
+        assert session.symbol == "X"
+    finally:
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task

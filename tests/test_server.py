@@ -17,6 +17,15 @@ def _join(match_id: str, player_name: str = "Ada") -> str:
     return response.json()["token"]
 
 
+def _drain_joined(websocket) -> dict:
+    """Every WS connection gets a one-time "joined" event (assigned symbol +
+    current board) immediately after accept, before anything else. Tests that
+    care about subsequent messages must consume it first."""
+    event = websocket.receive_json()
+    assert event["event"] == "joined"
+    return event
+
+
 def test_health_returns_ok() -> None:
     response = client.get("/api/v1/health")
     assert response.status_code == 200
@@ -85,6 +94,7 @@ def test_ws_chat_action_is_broadcast_to_room() -> None:
     token = _join(match_id, "Ada")
 
     with client.websocket_connect(f"/ws/match/{match_id}?token={token}") as websocket:
+        _drain_joined(websocket)
         websocket.send_json({"action": "chat", "payload": {"message": "hello room"}})
         event = websocket.receive_json()
         assert event == {"event": "chat_message", "payload": {"sender": "Ada", "message": "hello room"}}
@@ -99,6 +109,9 @@ def test_ws_two_concurrent_clients_exchange_chat_in_same_match() -> None:
         client.websocket_connect(f"/ws/match/{match_id}?token={ada_token}") as ada_ws,
         client.websocket_connect(f"/ws/match/{match_id}?token={bob_token}") as bob_ws,
     ):
+        _drain_joined(ada_ws)
+        _drain_joined(bob_ws)
+
         ada_ws.send_json({"action": "chat", "payload": {"message": "hi from Ada"}})
         assert ada_ws.receive_json() == {
             "event": "chat_message",
@@ -130,6 +143,9 @@ def test_ws_clients_in_different_matches_do_not_cross_talk() -> None:
         client.websocket_connect(f"/ws/match/{match_a}?token={token_a}") as ws_a,
         client.websocket_connect(f"/ws/match/{match_b}?token={token_b}") as ws_b,
     ):
+        _drain_joined(ws_a)
+        _drain_joined(ws_b)
+
         ws_a.send_json({"action": "chat", "payload": {"message": "only for match A"}})
         assert ws_a.receive_json()["payload"]["message"] == "only for match A"
 
@@ -144,6 +160,7 @@ def test_ws_malformed_json_gets_error_reply_without_crashing() -> None:
     token = _join(match_id, "Ada")
 
     with client.websocket_connect(f"/ws/match/{match_id}?token={token}") as websocket:
+        _drain_joined(websocket)
         websocket.send_text("not valid json")
         event = websocket.receive_json()
         assert event["event"] == "error"
@@ -163,7 +180,10 @@ def test_ws_two_players_complete_full_tictactoe_game() -> None:
         client.websocket_connect(f"/ws/match/{match_id}?token={ada_token}") as ada_ws,
         client.websocket_connect(f"/ws/match/{match_id}?token={bob_token}") as bob_ws,
     ):
-        # Ada moves first and is assigned X; Bob is assigned O. X wins the top row (0,1,2).
+        # Ada connects first and is assigned X; Bob is assigned O. X wins the top row (0,1,2).
+        assert _drain_joined(ada_ws)["payload"]["symbol"] == "X"
+        assert _drain_joined(bob_ws)["payload"]["symbol"] == "O"
+
         sequence = [(ada_ws, 0), (bob_ws, 3), (ada_ws, 1), (bob_ws, 4), (ada_ws, 2)]
         for sender_ws, move in sequence:
             sender_ws.send_json({"action": "submit_move", "payload": {"move": move}})
@@ -188,7 +208,9 @@ def test_ws_invalid_move_is_isolated_and_does_not_crash_server() -> None:
         client.websocket_connect(f"/ws/match/{match_id}?token={ada_token}") as ada_ws,
         client.websocket_connect(f"/ws/match/{match_id}?token={bob_token}") as bob_ws,
     ):
-        # Ada is assigned X on first contact and plays a valid opening move.
+        # Ada connects first and is assigned X; she plays a valid opening move.
+        _drain_joined(ada_ws)
+        _drain_joined(bob_ws)
         ada_ws.send_json({"action": "submit_move", "payload": {"move": 0}})
         ada_ws.receive_json()
         bob_ws.receive_json()
