@@ -6,3 +6,5 @@ pytest
 sqlalchemy
 httpx
 requests
+aiosqlite
+pytest-asyncio
