@@ -1,3 +1,9 @@
+Version v03.01.00 (2026-07-18)
+---------------------------
+- Created the Agent CLI skeleton loading environment variables and parsing command line options.
+- Implemented lobby registration HTTP calls to acquire authentication tokens.
+- Structured WebSocket listener loop receiving JSON events, logging state updates, chat messages, and game over.
+
 Version v02.03.00 (2026-07-18)
 ---------------------------
 - Integrated Tic-Tac-Toe rules engine with ConnectionManager, matching connected players to symbols and state tracking.
