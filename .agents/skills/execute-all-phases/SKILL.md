@@ -15,6 +15,9 @@ This skill automates the sequential implementation, validation, and release of a
 
 ## Instructions
 
+> [!IMPORTANT]
+> **Strict Implementation Rule**: Every line of code, test case, script, and configuration file must be generated entirely from scratch by the executing agent. You must **NEVER** use `git checkout`, `git cherry-pick`, or any merge/copy utilities to pull code or scripts from other branches (such as `Gemini-3.1Pro-dev` or `Gemini-dev`). Every feature must be actively generated and written by the LLM during the session.
+
 ### Step 1: Scan and Order the Implementation Phases
 1. Scan the `spec/implementation/` directory for files matching `v*-issues.md`.
 2. Order them chronologically (e.g., `v01.01`, `v01.02`, `v01.03`, `v02.01`, etc.).
@@ -31,13 +34,12 @@ Read the `spec/implementation/vXX.YY-issues.md` file to identify the list of iss
 For each issue (e.g., `ARENA-xxx`) within the current phase:
 1. Implement the tasks described under `What needs to be done`.
 2. Run validation checks (e.g., `pytest` or Python scripts).
-3. If validation succeeds, stage, commit, and push the changes:
+3. If validation succeeds, stage and commit the changes:
    ```bash
    git add <modified_files>
    git commit -m "ARENA-xxx: <title>
    
    <Short summary of changes>"
-   git push origin Gemini-3.5Flash-dev
    ```
 4. If validation fails, revert changes (`git checkout -- .`) and ask the user how to proceed.
 
@@ -56,13 +58,8 @@ After all issues in the current phase are successfully implemented and committed
    ```bash
    git tag -f -a vXX.YY.00 -m "Release vXX.YY.00"
    ```
-7. Push the commits and tags to origin:
-   ```bash
-   git push origin Gemini-3.5Flash-dev
-   git push origin --tags --force
-   ```
 8. Calculate the duration of this phase. Generate the execution report `spec/implementation/vXX.YY-execution-report.md` summarizing what was done, validation results, and the phase execution duration.
-9. Commit and push the execution report.
+9. Commit the execution report.
 
 ### Step 3: Complete Execution
 Once all phases are processed:
