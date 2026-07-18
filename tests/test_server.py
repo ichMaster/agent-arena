@@ -21,3 +21,25 @@ def test_create_match():
         assert str(val) == match_id
     except ValueError:
         assert False, f"Returned match_id {match_id} is not a valid UUID4"
+
+def test_join_match():
+    # First create a match to get a match_id
+    resp_match = client.post("/api/v1/lobby/match")
+    match_id = resp_match.json()["match_id"]
+    
+    # Send a valid join request
+    payload = {"match_id": match_id, "player_name": "Player 1"}
+    response = client.post("/api/v1/lobby/join", json=payload)
+    assert response.status_code == 200
+    data = response.json()
+    assert "token" in data
+    token = data["token"]
+    # Ensure it returns a non-empty string token
+    assert isinstance(token, str)
+    assert len(token) > 0
+
+def test_join_match_missing_fields():
+    # Send request with missing player_name
+    payload = {"match_id": "some-match-id"}
+    response = client.post("/api/v1/lobby/join", json=payload)
+    assert response.status_code == 422

@@ -17,6 +17,13 @@ app.add_middleware(
 class MatchResponse(BaseModel):
     match_id: str
 
+class JoinRequest(BaseModel):
+    match_id: str
+    player_name: str
+
+class JoinResponse(BaseModel):
+    token: str
+
 @app.get("/api/v1/health")
 async def health_check():
     return {"status": "ok"}
@@ -25,3 +32,9 @@ async def health_check():
 async def create_match():
     new_match_id = str(uuid.uuid4())
     return MatchResponse(match_id=new_match_id)
+
+@app.post("/api/v1/lobby/join", response_model=JoinResponse)
+async def join_match(request: JoinRequest):
+    # For now, generate a random temporary opaque Auth Token
+    token = str(uuid.uuid4())
+    return JoinResponse(token=token)
