@@ -15,16 +15,11 @@ class MatchContext:
     def __init__(self) -> None:
         self.game = TicTacToe()
         self.players: List[WebSocket] = []
-        self.player_map: Dict[WebSocket, str] = {} # Map WebSocket to 'X' or 'O'
+        self.player_map: Dict[WebSocket, str] = {} # Map WebSocket to 'X', 'O', or 'Spectator'
 
-    def add_player(self, websocket: WebSocket) -> None:
+    def add_player(self, websocket: WebSocket, symbol: str) -> None:
         self.players.append(websocket)
-        if len(self.players) == 1:
-            self.player_map[websocket] = 'X'
-        elif len(self.players) == 2:
-            self.player_map[websocket] = 'O'
-        else:
-            self.player_map[websocket] = 'Spectator'
+        self.player_map[websocket] = symbol
             
     def remove_player(self, websocket: WebSocket) -> None:
         if websocket in self.players:
@@ -35,13 +30,25 @@ class MatchContext:
 class ConnectionManager:
     def __init__(self) -> None:
         self.matches: Dict[str, MatchContext] = {}
+        self.token_to_symbol: Dict[str, Dict[str, str]] = {} # match_id -> {token -> symbol}
 
-    async def connect(self, websocket: WebSocket, match_id: str) -> None:
+    async def connect(self, websocket: WebSocket, match_id: str, token: str = "test-token") -> None:
         await websocket.accept()
         if match_id not in self.matches:
             self.matches[match_id] = MatchContext()
         
-        self.matches[match_id].add_player(websocket)
+        symbol = self.token_to_symbol.get(match_id, {}).get(token, None)
+        if not symbol:
+            # Fallback for direct tests
+            players_count = len(self.matches[match_id].players)
+            if players_count == 0:
+                symbol = 'X'
+            elif players_count == 1:
+                symbol = 'O'
+            else:
+                symbol = 'Spectator'
+                
+        self.matches[match_id].add_player(websocket, symbol)
         
         # Send initial state update to the connecting client
         state = self.matches[match_id].game.get_state()

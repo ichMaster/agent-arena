@@ -40,9 +40,12 @@ async def serve_ui():
 class MatchResponse(BaseModel):
     match_id: str
 
+from typing import Optional
+
 class JoinRequest(BaseModel):
     match_id: str
     player_name: str
+    symbol: Optional[str] = None
 
 class JoinResponse(BaseModel):
     token: str
@@ -67,6 +70,25 @@ async def join_match(request: JoinRequest):
             await session.commit()
             
     token = str(uuid.uuid4())
+    
+    # Map token to requested or fallback symbol
+    symbol = request.symbol
+    if not symbol:
+        if "spectator" in request.player_name.lower():
+            symbol = "Spectator"
+        else:
+            match_tokens = [s for s in manager.token_to_symbol.get(request.match_id, {}).values() if s in ('X', 'O')]
+            if len(match_tokens) == 0:
+                symbol = 'X'
+            elif len(match_tokens) == 1:
+                symbol = 'O'
+            else:
+                symbol = 'Spectator'
+                
+    if request.match_id not in manager.token_to_symbol:
+        manager.token_to_symbol[request.match_id] = {}
+    manager.token_to_symbol[request.match_id][token] = symbol
+    
     return JoinResponse(token=token)
 
 from fastapi import WebSocketException
@@ -81,7 +103,7 @@ async def websocket_endpoint(websocket: WebSocket, match_id: str, token: str = N
     except ValueError:
         raise WebSocketException(code=1008)
         
-    await manager.connect(websocket, match_id)
+    await manager.connect(websocket, match_id, token)
     try:
         from starlette.websockets import WebSocketState
         while True:

@@ -18,11 +18,12 @@ class AgentResponse(BaseModel):
     move: int
     comment: str
 
-async def get_auth_token(base_url: str, match_id: str, player_name: str) -> str:
+async def get_auth_token(base_url: str, match_id: str, player_name: str, symbol: str) -> str:
     join_url = f"{base_url}/api/v1/lobby/join"
     payload = {
         "match_id": match_id,
-        "player_name": player_name
+        "player_name": player_name,
+        "symbol": symbol
     }
     async with httpx.AsyncClient() as client:
         try:
@@ -59,7 +60,7 @@ async def run_agent(match_id: str, server_url: str, symbol: str, profile_path: s
         print("[!] Warning: GEMINI_API_KEY not found in environment")
         
     try:
-        token = await get_auth_token(server_url, match_id, profile.name)
+        token = await get_auth_token(server_url, match_id, profile.name, symbol)
         print(f"[+] Acquired Auth Token: {token}")
     except Exception as e:
         print(f"[-] HTTP Error: {e}")
