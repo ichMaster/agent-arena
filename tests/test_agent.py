@@ -10,8 +10,10 @@ import httpx2
 import pytest
 import uvicorn
 import websockets
+from pydantic import ValidationError
 
 from client.agent import AgentSession, join_match, parse_args, require_gemini_api_key, run_event_loop, to_ws_url
+from client.schemas import AgentResponse
 from server.main import app
 
 
@@ -125,7 +127,7 @@ async def test_agent_session_records_chat_and_moves_into_memory() -> None:
 
 async def test_agent_session_calls_llm_with_built_prompt_on_its_turn() -> None:
     fake_llm = AsyncMock()
-    fake_llm.generate_response.return_value = "I shall take the center."
+    fake_llm.generate_structured_response.return_value = AgentResponse(move=4, comment="The center is mine.")
     session = AgentSession("Ada", llm=fake_llm)
     session.symbol = "X"
 
@@ -136,15 +138,30 @@ async def test_agent_session_calls_llm_with_built_prompt_on_its_turn() -> None:
         }
     )
 
-    fake_llm.generate_response.assert_awaited_once()
-    prompt = fake_llm.generate_response.await_args.args[0]
+    fake_llm.generate_structured_response.assert_awaited_once()
+    prompt, schema = fake_llm.generate_structured_response.await_args.args
     assert "arrogant Tic-Tac-Toe master" in prompt
+    assert schema is AgentResponse
     assert "Valid moves: [0, 1, 2, 3, 4, 5, 6, 7, 8]" in prompt
 
 
 async def test_agent_session_without_llm_does_not_crash_on_its_turn() -> None:
     session = AgentSession("Ada")  # llm=None, matching the pre-v03.02 default
     session.symbol = "X"
+    await session.handle_event(
+        {"event": "state_update", "payload": {"board": [None] * 9, "current_turn": "X", "valid_moves": [0]}}
+    )
+
+
+async def test_agent_session_handles_malformed_llm_response_without_crashing() -> None:
+    fake_llm = AsyncMock()
+    fake_llm.generate_structured_response.side_effect = ValidationError.from_exception_data(
+        "AgentResponse", [{"type": "missing", "loc": ("move",), "input": {}}]
+    )
+    session = AgentSession("Ada", llm=fake_llm)
+    session.symbol = "X"
+
+    # Must not raise — a parse failure is logged and swallowed, not fatal.
     await session.handle_event(
         {"event": "state_update", "payload": {"board": [None] * 9, "current_turn": "X", "valid_moves": [0]}}
     )

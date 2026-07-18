@@ -9,9 +9,12 @@ import httpx2
 import websockets
 from dotenv import load_dotenv
 
+from pydantic import ValidationError
+
 from client.llm import GeminiClient, LLMClient
 from client.memory import MemoryWindow
 from client.prompt import build_prompt
+from client.schemas import AgentResponse
 
 DEFAULT_SERVER_URL = "http://localhost:8000"
 
@@ -87,9 +90,15 @@ class AgentSession:
         print(f"[{self.player_name}] It's my turn. valid_moves={valid_moves}")
         if self.llm is None:
             return
+
         prompt = build_prompt(self.memory, board, valid_moves)
-        response_text = await self.llm.generate_response(prompt)
-        print(f"[{self.player_name}] LLM response: {response_text}")
+        try:
+            agent_response = await self.llm.generate_structured_response(prompt, AgentResponse)
+        except (ValueError, ValidationError) as exc:
+            print(f"[{self.player_name}] Failed to parse LLM response as AgentResponse: {exc}", file=sys.stderr)
+            return
+
+        print(f"[{self.player_name}] LLM chose move={agent_response.move} comment={agent_response.comment!r}")
 
     async def handle_event(self, event: dict[str, Any]) -> None:
         kind = event.get("event")
