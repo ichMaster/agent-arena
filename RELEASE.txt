@@ -1,3 +1,9 @@
+Version v03.02.00 (2026-07-18)
+---------------------------
+- Wrapped official google-genai SDK into GeminiClient.
+- Created MemoryWindow rolling memory buffer class.
+- Structured dynamic prompt builder injecting persona, memory context, and board state, executing API triggers on agent turn.
+
 Version v03.01.00 (2026-07-18)
 ---------------------------
 - Created the Agent CLI skeleton loading environment variables and parsing command line options.
