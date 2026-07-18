@@ -14,7 +14,12 @@ A modular, turn-based multiplayer framework where human players and AI agents (p
 
 ## 2. Agent Architecture
 The Agent Client operates completely autonomously, separated from the Server. It runs as a persistent Python process.
-- **Event Loop:** The agent listens asynchronously for WebSocket push events. It remains dormant until it receives a `your_turn` payload.
+- **Event Loop:** The agent listens asynchronously for WebSocket push events. Right after connecting it receives a one-time `joined` event carrying its assigned symbol (X/O — assigned by connection order) and the current board/turn; from then on it acts whenever a `state_update` event's `current_turn` matches its own symbol. (As-implemented, the server never sends a distinct `your_turn` event — `joined` covers "is it my turn on connect" and `state_update` covers every turn after.) The full event set:
+  - `joined` — sent once, right after accept: `symbol`, `board`, `current_turn`, `valid_moves`.
+  - `state_update` — sent after every valid move: `board`, `current_turn`, `valid_moves`, `last_move`.
+  - `chat_message` — sent after a chat action: `sender`, `message`.
+  - `game_over` — sent when the game ends: `result` (`"X"`/`"O"`/`"draw"`); the server then closes every connection in the room.
+  - `error` — sent on an invalid/malformed message: `detail`.
 - **Context Assembly:** Upon receiving its turn, the agent builds a prompt combining:
   1. **System Persona:** Who the agent is and how it behaves.
   2. **Memory Window:** The last N turns and chat messages to maintain temporal continuity.
@@ -45,7 +50,7 @@ To ensure active games are not lost during a restart, the system uses a durable 
 
 ## 5. Security & Isolation
 - **Authentication:** Clients must obtain a session token via an HTTP Lobby endpoint before upgrading to a WebSocket connection. Agents are issued secure bot-tokens.
-- **Role-Based Execution:** The server strictly tracks the `user_id` mapped to Player X and Player O. A client cannot submit a move for a slot they do not own.
+- **Role-Based Execution:** The server strictly tracks the unique per-connection auth token (not the player's chosen display name, which is not guaranteed unique) mapped to Player X and Player O. A client cannot submit a move for a slot they do not own.
 - **Strict Input Validation:** All incoming WebSocket JSON payloads are validated through Pydantic models. 
 - **The Ultimate Authority:** The LLM's outputs are considered entirely untrusted. The Server's `GameInterface` provides the final, unbreachable mathematical barrier against illegal moves.
 - **Secret Isolation:** API keys for the LLMs (e.g., `OPENAI_API_KEY`) live securely within the Agent's `.env` space and are never transmitted to the Server or Web UI.
@@ -55,7 +60,7 @@ To ensure active games are not lost during a restart, the system uses a durable 
 ## 6. Testing Strategy
 - **Unit Testing:** Fast, deterministic tests for game logic, invalid move rejection, and win/loss condition calculations. 
 - **Mocked LLMs:** The `LLMClient` seam is heavily mocked during CI. Tests simulate LLM tool calls without ever hitting paid external APIs, ensuring tests run instantly and cost nothing.
-- **Contract Testing:** Validates that the schema for WebSockets (e.g., `your_turn` events) and the `GameInterface` remain stable and unbroken.
+- **Contract Testing:** Validates that the schema for WebSockets (`joined`, `state_update`, `chat_message`, `game_over`, `error` events — see §2) and the `GameInterface` remain stable and unbroken.
 - **Integration Testing:** Spin up a temporary server, a mock UI client, and a mocked Agent Client to simulate end-to-end matches natively.
 
 ---
