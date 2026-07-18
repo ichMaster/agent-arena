@@ -140,7 +140,8 @@ class AgentSession:
         hallucinates an out-of-bounds/occupied cell or returns unparseable JSON.
         Falls back to a random valid move rather than stalling the game."""
         assert self.llm is not None
-        prompt = build_prompt(self.memory, board, valid_moves, self.persona)
+        base_prompt = build_prompt(self.memory, board, valid_moves, self.persona)
+        prompt = base_prompt
         last_comment = ""
 
         for attempt in range(1, MAX_MOVE_ATTEMPTS + 1):
@@ -159,7 +160,7 @@ class AgentSession:
             )
             last_comment = agent_response.comment
             prompt = (
-                f"{build_prompt(self.memory, board, valid_moves, self.persona)}\n\n"
+                f"{base_prompt}\n\n"
                 f"Error: Move {agent_response.move} is invalid. The valid moves are {valid_moves}. Try again."
             )
 

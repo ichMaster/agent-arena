@@ -14,7 +14,6 @@ class Repository:
         match = MatchModel(id=match_id, status=status)
         self._session.add(match)
         await self._session.commit()
-        await self._session.refresh(match)
         return match
 
     async def get_match(self, match_id: str) -> MatchModel | None:
@@ -24,7 +23,6 @@ class Repository:
         move = MoveLogModel(match_id=match_id, player_id=player_id, move_payload=move_payload)
         self._session.add(move)
         await self._session.commit()
-        await self._session.refresh(move)
         return move
 
     async def get_move_logs(self, match_id: str) -> list[MoveLogModel]:
@@ -37,7 +35,6 @@ class Repository:
         chat = ChatLogModel(match_id=match_id, sender=sender, message=message)
         self._session.add(chat)
         await self._session.commit()
-        await self._session.refresh(chat)
         return chat
 
     async def get_chat_logs(self, match_id: str) -> list[ChatLogModel]:
