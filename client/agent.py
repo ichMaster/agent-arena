@@ -11,6 +11,7 @@ import sys
 from collections import deque
 from dotenv import load_dotenv
 from client.llm import GeminiClient
+from client.profile import load_profile
 
 load_dotenv()
 
@@ -28,22 +29,25 @@ async def main():
     parser = argparse.ArgumentParser(description="Agent Arena CLI Client")
     parser.add_argument("--match-id", required=True, help="The UUID of the match to join")
     parser.add_argument("--server", default="http://localhost:8000", help="The HTTP URL of the server")
-    parser.add_argument("--name", default="AgentBot", help="The player name to register as")
+    parser.add_argument("--profile", required=True, help="Path to the YAML profile configuration")
     
     args = parser.parse_args()
+    
+    profile = load_profile(args.profile)
     
     match_id = args.match_id
     server_url = args.server.rstrip("/")
     ws_url = server_url.replace("http://", "ws://").replace("https://", "wss://")
     
-    print(f"[*] Joining match {match_id} at {server_url} as {args.name}...")
+    print(f"[*] Loaded profile: {profile.name} (Temperature: {profile.temperature}, Memory: {profile.memory_limit})")
+    print(f"[*] Joining match {match_id} at {server_url} as {profile.name}...")
     
     # 1. Join Lobby
     try:
         async with httpx.AsyncClient() as client:
             response = await client.post(
                 f"{server_url}/api/v1/lobby/join", 
-                json={"match_id": match_id, "player_name": args.name},
+                json={"match_id": match_id, "player_name": profile.name},
                 timeout=15.0
             )
             response.raise_for_status()
@@ -65,9 +69,9 @@ async def main():
             print("[*] WebSocket connected. Listening for events...")
             
             my_symbol = None
-            memory = MemoryWindow(size=10)
-            llm_client = GeminiClient()
-            persona = "You are an arrogant Tic-Tac-Toe master. Never lose."
+            memory = MemoryWindow(size=profile.memory_limit)
+            llm_client = GeminiClient(temperature=profile.temperature)
+            persona = profile.system_prompt
             
             async for message in ws:
                 try:

@@ -1,3 +1,7 @@
+v05.02.00:
+- Updated `client/agent.py` to parse `--profile` and load `.yml` configs at runtime.
+- Passed down profile settings (temperature, name, memory limit, system prompt) dynamically.
+
 v05.01.00:
 - Created `AgentProfile` Pydantic Schema.
 - Added `PyYAML` support to load and validate YAML persona profiles.

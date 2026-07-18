@@ -18,15 +18,19 @@ class LLMClient(abc.ABC):
         pass
 
 class GeminiClient(LLMClient):
-    def __init__(self):
+    def __init__(self, temperature: float = 0.7):
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key)
         self.model = "gemini-3.1-pro"
+        self.temperature = temperature
 
     async def generate_response(self, prompt: str) -> str:
         response = await self.client.aio.models.generate_content(
             model=self.model,
-            contents=prompt
+            contents=prompt,
+            config=types.GenerateContentConfig(
+                temperature=self.temperature
+            )
         )
         return response.text
 
@@ -37,6 +41,7 @@ class GeminiClient(LLMClient):
             config=types.GenerateContentConfig(
                 response_mime_type="application/json",
                 response_schema=AgentResponse,
+                temperature=self.temperature
             )
         )
         return AgentResponse.model_validate_json(response.text)
