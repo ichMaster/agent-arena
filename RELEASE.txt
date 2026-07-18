@@ -1,3 +1,8 @@
+v04.01.00:
+- Extracted UI into a clean `frontend/index.html` structure.
+- Implemented Glassmorphism CSS system in `frontend/styles.css`.
+- Added CSS Grid 3x3 layout for the board and Flexbox layout for the Chat Area.
+
 v03.03.00:
 - Extracted LLM Structured Output using Pydantic and Google Gen AI API schemas.
 - Implemented move validation and retry loop to prevent AI hallucination.
