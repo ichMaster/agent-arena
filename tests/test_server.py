@@ -19,6 +19,19 @@ def test_health_check():
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
+def test_serve_static_ui():
+    # Verify index.html is served at root
+    response = client.get("/")
+    assert response.status_code == 200
+    assert "text/html" in response.headers["content-type"]
+    assert "Agent Arena" in response.text
+    
+    # Verify styles.css is served
+    response_css = client.get("/static/styles.css")
+    assert response_css.status_code == 200
+    assert "text/css" in response_css.headers["content-type"]
+
+
 def test_create_match():
     response = client.post("/api/v1/lobby/match")
     assert response.status_code == 200

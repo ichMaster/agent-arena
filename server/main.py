@@ -6,6 +6,9 @@ from server.websockets import manager, ClientActionPayload, ServerPushEvent
 from server.database import async_session_maker
 from server.repository import ArenaRepository
 
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import HTMLResponse
+
 app = FastAPI(title="Agent Arena", version="03.03.00")
 
 # Allow all origins for local development
@@ -16,6 +19,13 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.mount("/static", StaticFiles(directory="static"), name="static")
+
+@app.get("/", response_class=HTMLResponse)
+async def serve_ui():
+    with open("static/index.html", "r") as f:
+        return HTMLResponse(content=f.read(), status_code=200)
 
 class MatchResponse(BaseModel):
     match_id: str
