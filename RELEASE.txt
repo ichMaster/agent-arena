@@ -1,5 +1,10 @@
 # Agent Arena — Release Notes
 
+## v03.02.00 — LLM Seam & Persona
+- `client/llm.py`: `LLMClient` abstract seam + `GeminiClient` wrapping `google-genai`'s async client, hardcoded to `gemini-3.1-pro`. Fully mocked in tests — never hits the real paid API.
+- `client/memory.py` / `client/prompt.py`: `MemoryWindow` (rolling buffer of recent chat/moves) and `build_prompt` combining the hardcoded persona + memory + board + valid moves.
+- `AgentSession` now builds a prompt and calls the LLM on its own turn, logging the raw response (translating it into an actual move is v03.03).
+
 ## v03.01.00 — Agent CLI Skeleton & WebSocket Loop
 - `client/agent.py`: CLI (`--match-id`, `--server-url`, `--player-name`) that loads `.env` (fails fast if `GEMINI_API_KEY` is missing), joins the lobby over HTTP, and runs a real-time `AgentSession` event loop over `websockets`.
 - New WS protocol event: server sends a one-time `joined` event (assigned symbol + board/turn) right after every connection accepts, so a client can know whose turn it is before ever moving — symbol assignment moved from first-move time to connect time.
