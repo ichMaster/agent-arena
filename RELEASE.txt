@@ -1,3 +1,9 @@
+v01.03.00:
+- Added WebSocket Schemas and ConnectionManager.
+- Implemented `/ws/match/{match_id}` endpoint with Auth Handshake.
+- Added Event Routing and Broadcast Loop.
+- Added Concurrent WebSocket Tests.
+
 v01.02.00:
 - Added Async Database Engine (aiosqlite).
 - Defined Match, MoveLog, and ChatLog schemas.
