@@ -1,5 +1,10 @@
 # Agent Arena — Release Notes
 
+## v04.01.00 — HTML/CSS Skeleton
+- `web/index.html` + `web/styles.css`: semantic structure split out from `spec/ui_prototype.html`, no JS yet — buttons/inputs present but inert.
+- Full Glassmorphism color system as CSS custom properties (accent/agent/status colors, glass-inset opacities), 3x3 CSS Grid board, Flexbox chat sidebar, and a responsive breakpoint (the prototype had none) so the layout stacks and fits on narrow viewports.
+- `/ui` mounted as static files on the FastAPI app so the frontend is actually reachable.
+
 ## v03.03.00 — Tool Calling & Parsing
 - `client/schemas.py`: `AgentResponse` (`move`, `comment`); `GeminiClient.generate_structured_response` forces the SDK to return JSON matching it.
 - `AgentSession._decide_move`: validates the move against `valid_moves`, retries up to 3 times with an explicit error prompt on rejection or unparseable output, then falls back to a random legal move — never stalls the game.
