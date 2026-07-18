@@ -64,5 +64,5 @@ After all issues in the current phase are successfully implemented and committed
 ### Step 3: Complete Execution
 Once all phases are processed:
 1. Calculate the total execution time of the entire run.
-2. Print a final summary of all versions implemented and released, along with the total duration.
+2. Generate a comprehensive summary report of the time used for code generation, listing the start time, end time, and duration of every individual phase (from v01.01 to the final phase), as well as the total accumulated duration. Present this report clearly to the user.
 
