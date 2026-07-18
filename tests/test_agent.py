@@ -18,6 +18,7 @@ from client.agent import (
     join_match,
     parse_args,
     require_gemini_api_key,
+    run,
     run_event_loop,
     to_ws_url,
 )
@@ -37,21 +38,45 @@ class FakeClientWebSocket:
 
 
 def test_parse_args_reads_required_and_optional_fields() -> None:
-    args = parse_args(["--match-id", "abc-123"])
+    args = parse_args(["--match-id", "abc-123", "--profile", "profiles/aggressive_bot.yml"])
     assert args.match_id == "abc-123"
     assert args.server_url == "http://localhost:8000"
-    assert args.player_name == "Gemini-Agent"
+    assert args.profile == "profiles/aggressive_bot.yml"
+    assert args.symbol is None
+    assert args.player_name is None
 
     args = parse_args(
-        ["--match-id", "abc-123", "--server-url", "http://example.com", "--player-name", "Bot"]
+        [
+            "--match-id",
+            "abc-123",
+            "--server-url",
+            "http://example.com",
+            "--profile",
+            "profiles/cowardly_bot.yml",
+            "--symbol",
+            "O",
+            "--player-name",
+            "Bot",
+        ]
     )
     assert args.server_url == "http://example.com"
+    assert args.symbol == "O"
     assert args.player_name == "Bot"
 
 
 def test_parse_args_requires_match_id() -> None:
     with pytest.raises(SystemExit):
-        parse_args([])
+        parse_args(["--profile", "profiles/aggressive_bot.yml"])
+
+
+def test_parse_args_requires_profile() -> None:
+    with pytest.raises(SystemExit):
+        parse_args(["--match-id", "abc-123"])
+
+
+def test_parse_args_rejects_invalid_symbol() -> None:
+    with pytest.raises(SystemExit):
+        parse_args(["--match-id", "abc-123", "--profile", "profiles/aggressive_bot.yml", "--symbol", "Z"])
 
 
 def test_require_gemini_api_key_exits_when_missing() -> None:
@@ -65,6 +90,59 @@ def test_require_gemini_api_key_exits_when_missing() -> None:
 def test_require_gemini_api_key_returns_value_when_present() -> None:
     with patch.dict(os.environ, {"GEMINI_API_KEY": "test-key-123"}):
         assert require_gemini_api_key() == "test-key-123"
+
+
+async def test_run_loads_profile_and_wires_agent_session() -> None:
+    args = parse_args(
+        ["--match-id", "match-1", "--profile", "profiles/aggressive_bot.yml", "--symbol", "X"]
+    )
+    captured: dict = {}
+
+    async def fake_run_event_loop(server_url, match_id, token, session):
+        captured["session"] = session
+
+    with (
+        patch("client.agent.join_match", new=AsyncMock(return_value="tok-123")) as fake_join,
+        patch("client.agent.run_event_loop", new=fake_run_event_loop),
+        patch("client.agent.GeminiClient") as fake_gemini_cls,
+    ):
+        await run(args, api_key="fake-key")
+
+    fake_join.assert_awaited_once_with(args.server_url, "match-1", "Aggressor-Prime")
+    fake_gemini_cls.assert_called_once_with(api_key="fake-key", temperature=1.1)
+
+    session = captured["session"]
+    assert session.player_name == "Aggressor-Prime"
+    assert session.expected_symbol == "X"
+    assert "ruthlessly aggressive" in session.persona
+    assert session.memory._events.maxlen == 10
+
+
+async def test_run_lets_player_name_override_profile_name() -> None:
+    args = parse_args(
+        [
+            "--match-id",
+            "match-1",
+            "--profile",
+            "profiles/cowardly_bot.yml",
+            "--player-name",
+            "Custom-Name",
+        ]
+    )
+    captured: dict = {}
+
+    async def fake_run_event_loop(server_url, match_id, token, session):
+        captured["session"] = session
+
+    with (
+        patch("client.agent.join_match", new=AsyncMock(return_value="tok-123")) as fake_join,
+        patch("client.agent.run_event_loop", new=fake_run_event_loop),
+        patch("client.agent.GeminiClient"),
+    ):
+        await run(args, api_key="fake-key")
+
+    fake_join.assert_awaited_once_with(args.server_url, "match-1", "Custom-Name")
+    assert captured["session"].player_name == "Custom-Name"
 
 
 async def test_join_match_returns_token_from_real_app() -> None:
@@ -98,6 +176,42 @@ async def test_agent_session_learns_symbol_from_joined_event() -> None:
     assert session.symbol is None
     await session.handle_event({"event": "joined", "payload": {"symbol": "X", "board": [None] * 9, "current_turn": "X"}})
     assert session.symbol == "X"
+
+
+async def test_agent_session_uses_custom_persona_in_prompt(capsys) -> None:
+    fake_llm = AsyncMock()
+    fake_llm.generate_structured_response.return_value = AgentResponse(move=0, comment="Eek, if I must.")
+    session = AgentSession("Nervous-Nelly", llm=fake_llm, persona="You are a nervous, defensive player.")
+    session.symbol = "X"
+    session.websocket = FakeClientWebSocket()
+
+    await session.handle_event(
+        {"event": "state_update", "payload": {"board": [None] * 9, "current_turn": "X", "valid_moves": [0]}}
+    )
+
+    prompt = fake_llm.generate_structured_response.await_args.args[0]
+    assert "You are a nervous, defensive player." in prompt
+    assert "arrogant Tic-Tac-Toe master" not in prompt
+
+
+async def test_agent_session_warns_on_symbol_mismatch(capsys) -> None:
+    session = AgentSession("Ada", expected_symbol="O")
+    await session.handle_event(
+        {"event": "joined", "payload": {"symbol": "X", "board": [None] * 9, "current_turn": "O"}}
+    )
+    assert session.symbol == "X"  # the server's assignment always wins
+    captured = capsys.readouterr()
+    assert "expected symbol 'O'" in captured.err
+    assert "assigned 'X'" in captured.err
+
+
+async def test_agent_session_no_warning_when_symbol_matches_expected(capsys) -> None:
+    session = AgentSession("Ada", expected_symbol="X")
+    await session.handle_event(
+        {"event": "joined", "payload": {"symbol": "X", "board": [None] * 9, "current_turn": "O"}}
+    )
+    captured = capsys.readouterr()
+    assert "WARNING" not in captured.err
 
 
 async def test_agent_session_detects_its_turn_from_state_update() -> None:

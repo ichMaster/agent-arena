@@ -14,7 +14,8 @@ from pydantic import ValidationError
 
 from client.llm import GeminiClient, LLMClient
 from client.memory import MemoryWindow
-from client.prompt import build_prompt
+from client.profile import AgentProfile
+from client.prompt import SYSTEM_PERSONA, build_prompt
 from client.schemas import AgentResponse
 
 DEFAULT_SERVER_URL = "http://localhost:8000"
@@ -25,7 +26,17 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Agent Arena — LLM-powered game agent")
     parser.add_argument("--match-id", required=True, help="Match UUID to join")
     parser.add_argument("--server-url", default=DEFAULT_SERVER_URL, help="Base URL of the game server")
-    parser.add_argument("--player-name", default="Gemini-Agent", help="Display name to join the match as")
+    parser.add_argument("--profile", required=True, help="Path to an AgentProfile YAML file")
+    parser.add_argument(
+        "--symbol",
+        choices=["X", "O"],
+        default=None,
+        help="Symbol this agent expects to play as; the server actually assigns it by connection "
+        "order, so this only warns on mismatch rather than forcing an assignment",
+    )
+    parser.add_argument(
+        "--player-name", default=None, help="Override the display name (defaults to the profile's name)"
+    )
     return parser.parse_args(argv)
 
 
@@ -77,11 +88,20 @@ class AgentSession:
     persona-driven prompt, asks the LLM for a move, and transmits it (plus
     its trash-talk) back to the server."""
 
-    def __init__(self, player_name: str, llm: LLMClient | None = None, memory_limit: int = 10) -> None:
+    def __init__(
+        self,
+        player_name: str,
+        llm: LLMClient | None = None,
+        memory_limit: int = 10,
+        persona: str = SYSTEM_PERSONA,
+        expected_symbol: str | None = None,
+    ) -> None:
         self.player_name = player_name
         self.symbol: str | None = None
         self.llm = llm
         self.memory = MemoryWindow(maxlen=memory_limit)
+        self.persona = persona
+        self.expected_symbol = expected_symbol
         self.websocket: Any = None  # set by run_event_loop once connected
 
     def is_my_turn(self, current_turn: Any) -> bool:
@@ -109,7 +129,7 @@ class AgentSession:
         hallucinates an out-of-bounds/occupied cell or returns unparseable JSON.
         Falls back to a random valid move rather than stalling the game."""
         assert self.llm is not None
-        prompt = build_prompt(self.memory, board, valid_moves)
+        prompt = build_prompt(self.memory, board, valid_moves, self.persona)
         last_comment = ""
 
         for attempt in range(1, MAX_MOVE_ATTEMPTS + 1):
@@ -128,7 +148,7 @@ class AgentSession:
             )
             last_comment = agent_response.comment
             prompt = (
-                f"{build_prompt(self.memory, board, valid_moves)}\n\n"
+                f"{build_prompt(self.memory, board, valid_moves, self.persona)}\n\n"
                 f"Error: Move {agent_response.move} is invalid. The valid moves are {valid_moves}. Try again."
             )
 
@@ -143,6 +163,12 @@ class AgentSession:
         if kind == "joined":
             self.symbol = payload.get("symbol")
             print(f"[{self.player_name}] Joined as '{self.symbol}'. Board: {payload.get('board')}")
+            if self.expected_symbol is not None and self.symbol != self.expected_symbol:
+                print(
+                    f"[{self.player_name}] WARNING: expected symbol '{self.expected_symbol}' via --symbol, "
+                    f"but the server assigned '{self.symbol}' (assignment is by connection order).",
+                    file=sys.stderr,
+                )
         elif kind == "state_update":
             print(
                 f"[{self.player_name}] state_update: board={payload.get('board')} "
@@ -183,9 +209,19 @@ async def run_event_loop(server_url: str, match_id: str, token: str, session: Ag
 
 
 async def run(args: argparse.Namespace, api_key: str) -> None:
-    token = await join_match(args.server_url, args.match_id, args.player_name)
-    print(f"Joined match {args.match_id} as {args.player_name}. Auth token acquired.")
-    session = AgentSession(args.player_name, llm=GeminiClient(api_key=api_key))
+    profile = AgentProfile.load_from_yaml(args.profile)
+    player_name = args.player_name or profile.name
+
+    token = await join_match(args.server_url, args.match_id, player_name)
+    print(f"Joined match {args.match_id} as {player_name} (profile: {profile.name}). Auth token acquired.")
+
+    session = AgentSession(
+        player_name,
+        llm=GeminiClient(api_key=api_key, temperature=profile.temperature),
+        memory_limit=profile.memory_limit,
+        persona=profile.system_prompt,
+        expected_symbol=args.symbol,
+    )
     await run_event_loop(args.server_url, args.match_id, token, session)
 
 
