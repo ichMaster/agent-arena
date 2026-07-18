@@ -95,12 +95,61 @@ body {
     -webkit-text-fill-color: transparent;
 }
 
-.status-badge {
-    padding: 0.5rem 1rem;
-    border-radius: 30px;
-    font-size: 0.9rem;
-    font-weight: 600;
-    background: rgba(255, 255, 255, 0.1);
+.header-left {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+}
+
+.connection-status {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+
+.dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.dot.disconnected {
+    background-color: #ff2a5f;
+    box-shadow: 0 0 8px #ff2a5f;
+}
+
+.dot.connected {
+    background-color: #00e676;
+    box-shadow: 0 0 8px #00e676;
+}
+
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.glass-input-sm {
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--glass-border);
+    border-radius: 8px;
+    padding: 0.5rem 0.8rem;
+    color: white;
+    font-family: inherit;
+    outline: none;
+    width: 120px;
+}
+
+.primary-btn {
+    background: rgba(0, 210, 255, 0.2);
+    border-color: rgba(0, 210, 255, 0.4);
+}
+
+.primary-btn:hover {
+    background: rgba(0, 210, 255, 0.3);
 }
 
 /* Layout Workspace */

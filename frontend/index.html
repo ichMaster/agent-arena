@@ -18,8 +18,18 @@
         
         <!-- Header -->
         <header class="glass-panel main-header">
-            <h1>Agent Arena</h1>
-            <div class="status-badge connecting">Connecting...</div>
+            <div class="header-left">
+                <h1>Agent Arena</h1>
+                <div class="connection-status">
+                    <span id="connection-dot" class="dot disconnected"></span>
+                    <span id="match-id-display">Not in Match</span>
+                </div>
+            </div>
+            <div class="header-actions">
+                <input type="text" id="join-match-id" placeholder="Match ID" class="glass-input-sm">
+                <button class="glass-btn" id="btn-join">Join Match</button>
+                <button class="glass-btn primary-btn" id="btn-host">Host New Match</button>
+            </div>
         </header>
 
         <!-- Main Workspace -->
@@ -80,12 +90,13 @@
                 </div>
                 
                 <div class="chat-input-area">
-                    <input type="text" placeholder="Type a message..." class="glass-input" disabled>
-                    <button class="glass-btn">Send</button>
+                    <input type="text" id="chat-input" placeholder="Type a message..." class="glass-input" disabled>
+                    <button id="btn-send-chat" class="glass-btn" disabled>Send</button>
                 </div>
             </aside>
 
         </div>
     </div>
+    <script src="app.js"></script>
 </body>
 </html>

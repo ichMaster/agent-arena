@@ -1,3 +1,8 @@
+v04.02.00:
+- Added `frontend/app.js` with HTTP Lobby Integration (`/match`, `/join`).
+- Established native WebSocket connection with Event Router pattern.
+- Bound UI buttons for Match creation and connection toggling.
+
 v04.01.00:
 - Extracted UI into a clean `frontend/index.html` structure.
 - Implemented Glassmorphism CSS system in `frontend/styles.css`.
