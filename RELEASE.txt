@@ -1,3 +1,9 @@
+Version v04.01.00 (2026-07-18)
+---------------------------
+- Scaffolded modular index.html semantic markup.
+- Created styles.css containing Glassmorphism design parameters, responsive columns, and glowing accents.
+- Mounted StaticFiles directory and mounted root GET endpoint serving frontend static layout.
+
 Version v03.03.00 (2026-07-18)
 ---------------------------
 - Implemented structured outputs configuration in GeminiClient using Pydantic schema validation.
