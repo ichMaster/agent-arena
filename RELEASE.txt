@@ -1,5 +1,10 @@
 # Agent Arena — Release Notes
 
+## v02.03.00 — Match Orchestrator & WS Integration
+- `server/match.py`: `Match` holds a live `TicTacToe` instance and lazily assigns X/O symbols to the first two distinct player names to act.
+- WS router handles `submit_move`: valid moves persist + broadcast `state_update`; invalid/out-of-turn/third-player moves get an isolated `error`; a completed game broadcasts `game_over` and gracefully closes every connection in the room.
+- 2 real WebSocket clients play a full game end-to-end through `/ws/match/{match_id}` (Phase 2 DoD).
+
 ## v02.02.00 — Tic-Tac-Toe Engine
 - `games/tictactoe.py`: concrete `TicTacToe(GameInterface)` — 3x3 board, all 8 winning vectors, draw detection, rejects occupied/out-of-bounds/non-integer moves.
 - 25 exhaustive tests covering every winning permutation for both players plus edge cases.
