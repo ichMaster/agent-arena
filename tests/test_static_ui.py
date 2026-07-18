@@ -35,3 +35,14 @@ def test_ui_board_cells_start_disabled() -> None:
     response = client.get("/ui/")
     assert response.status_code == 200
     assert 'class="cell disabled" id="cell-0"' in response.text
+
+
+def test_ui_app_js_displays_the_full_match_id_not_a_truncated_prefix() -> None:
+    """Regression: the display used to show only matchId.slice(0, 8) — cosmetic,
+    but it's also the exact string the README tells users to copy into
+    `client/agent.py --match-id ...` / the swarm script, so a truncated id
+    silently 404s against the real match (see server/main.py's join validation)."""
+    response = client.get("/ui/app.js")
+    assert response.status_code == 200
+    assert ".slice(0, 8)" not in response.text
+    assert "setMatchIdDisplay" in response.text

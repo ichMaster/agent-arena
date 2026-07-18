@@ -92,7 +92,15 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
+    flex-wrap: wrap;
     gap: 0.5rem;
+}
+
+#match-id-display {
+    /* The full match_id (a UUID) is shown in full — it's the exact string a
+       developer needs to copy into the agent CLI/swarm script — so wrap it
+       gracefully on narrow viewports instead of overflowing the panel. */
+    word-break: break-all;
 }
 
 .status-dot {

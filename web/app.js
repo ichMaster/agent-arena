@@ -18,11 +18,20 @@ let myPlayerName = null;
 let mySymbol = null;
 let isGameActive = true;
 
+function setMatchIdDisplay(matchId) {
+    // Show the FULL id, not a cosmetic prefix — this is the exact string a
+    // developer needs to copy into `python client/agent.py --match-id ...`
+    // or the swarm script; a truncated display looks fine but silently
+    // hands out an id that will 404 against the real match.
+    els.matchIdDisplay.textContent = `• Match: ${matchId}`;
+    els.matchIdDisplay.title = matchId;
+}
+
 async function hostMatch() {
     const response = await fetch('/api/v1/lobby/match', { method: 'POST' });
     const data = await response.json();
     currentMatchId = data.match_id;
-    els.matchIdDisplay.textContent = `• Match #${currentMatchId.slice(0, 8)}`;
+    setMatchIdDisplay(currentMatchId);
     await promptAndJoin();
 }
 
@@ -30,7 +39,7 @@ async function joinExistingMatch() {
     const matchId = window.prompt('Enter the Match ID to join:');
     if (!matchId) return;
     currentMatchId = matchId.trim();
-    els.matchIdDisplay.textContent = `• Match #${currentMatchId.slice(0, 8)}`;
+    setMatchIdDisplay(currentMatchId);
     await promptAndJoin();
 }
 
