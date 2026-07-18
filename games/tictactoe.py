@@ -4,9 +4,14 @@ from games.interface import GameInterface
 class TicTacToe(GameInterface):
     def __init__(self) -> None:
         self.board: List[Optional[str]] = [None] * 9
+        self.current_turn: str = 'X'
 
     def get_state(self) -> Dict[str, Any]:
-        return {"board": self.board}
+        return {
+            "board": self.board,
+            "current_turn": self.current_turn,
+            "status": self.is_game_over() or "ACTIVE"
+        }
 
     def get_valid_moves(self) -> List[int]:
         return [i for i, cell in enumerate(self.board) if cell is None]
@@ -16,8 +21,11 @@ class TicTacToe(GameInterface):
             return False
         if self.board[move] is not None:
             return False
-        # Set move
+        if player != self.current_turn:
+            return False
+        # Set move and switch turn
         self.board[move] = player
+        self.current_turn = 'O' if player == 'X' else 'X'
         return True
 
     def is_game_over(self) -> Optional[str]:
@@ -36,6 +44,6 @@ class TicTacToe(GameInterface):
                 return self.board[a]
                 
         if all(cell is not None for cell in self.board):
-            return "Draw"
+            return "draw"
             
         return None
