@@ -1,0 +1,6 @@
+Version v01.01.00 (2026-07-18)
+---------------------------
+- Set up FastAPI project skeleton with CORS middleware enabling local development.
+- Implemented HTTP GET /api/v1/health returning health check status.
+- Implemented HTTP POST /api/v1/lobby/match returning unique UUID4 match_id.
+- Implemented HTTP POST /api/v1/lobby/join accepting match_id and player_name inputs and returning temporary Auth Tokens.
