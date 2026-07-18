@@ -122,7 +122,10 @@ It is your turn. Please state your move (0-8) and provide a short comment that f
 """
                             print(f"[*] Hitting LLM API (Attempt {attempt+1}/{max_attempts})...")
                             try:
-                                response_obj = await llm_client.generate_structured_response(prompt, AgentResponse)
+                                response_obj = await asyncio.wait_for(
+                                    llm_client.generate_structured_response(prompt, AgentResponse),
+                                    timeout=15.0
+                                )
                                 move = response_obj.move
                                 comment = response_obj.comment
                                 print(f"[+] LLM output: chosen move -> {move} | comment -> '{comment}'")
