@@ -1,5 +1,11 @@
 # Agent Arena — Release Notes
 
+## v03.03.00 — Tool Calling & Parsing
+- `client/schemas.py`: `AgentResponse` (`move`, `comment`); `GeminiClient.generate_structured_response` forces the SDK to return JSON matching it.
+- `AgentSession._decide_move`: validates the move against `valid_moves`, retries up to 3 times with an explicit error prompt on rejection or unparseable output, then falls back to a random legal move — never stalls the game.
+- `on_my_turn` now transmits the decided move back to the server (`chat` with the taunt, then `submit_move`), closing the loop.
+- Verified against a real `uvicorn` server: the agent autonomously joins, decides, and plays — no manual driving. **Phase 3 DoD met: the Agent Client completes a full game of Tic-Tac-Toe autonomously.**
+
 ## v03.02.00 — LLM Seam & Persona
 - `client/llm.py`: `LLMClient` abstract seam + `GeminiClient` wrapping `google-genai`'s async client, hardcoded to `gemini-3.1-pro`. Fully mocked in tests — never hits the real paid API.
 - `client/memory.py` / `client/prompt.py`: `MemoryWindow` (rolling buffer of recent chat/moves) and `build_prompt` combining the hardcoded persona + memory + board + valid moves.
