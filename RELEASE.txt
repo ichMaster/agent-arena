@@ -1,5 +1,9 @@
 # Agent Arena — Release Notes
 
+## v02.02.00 — Tic-Tac-Toe Engine
+- `games/tictactoe.py`: concrete `TicTacToe(GameInterface)` — 3x3 board, all 8 winning vectors, draw detection, rejects occupied/out-of-bounds/non-integer moves.
+- 25 exhaustive tests covering every winning permutation for both players plus edge cases.
+
 ## v02.01.00 — Game Interface
 - `games/interface.py`: abstract `GameInterface` (`get_state`, `get_valid_moves`, `apply_move`, `is_game_over`), fully decoupled from FastAPI/WebSocket/DB — cannot be instantiated directly.
 - `mypy.ini` enforces strict typing on `games/*`; `requirements-dev.txt` adds `mypy` for local/CI checks.
