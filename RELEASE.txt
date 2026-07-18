@@ -1,3 +1,10 @@
+Version v04.03.00 (2026-07-18)
+---------------------------
+- Added assigned player symbol tracking and active turn indicator updates.
+- Enabled interactive board cell clicks transmitting moves to the server.
+- Built fully interactive chat inputs and structured message ledge appending.
+- Added game over freeze controls and winner display banner.
+
 Version v04.02.00 (2026-07-18)
 ---------------------------
 - Created static/app.js implementing client lobby authentication (Host/Join match API calls).
