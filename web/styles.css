@@ -332,3 +332,49 @@ body {
     border-color: var(--accent-primary);
     box-shadow: 0 0 10px var(--accent-glow);
 }
+
+/* Responsive: stack the chat below the board and drop the absolute-positioned
+   header/players/lobby-controls to normal flex flow so nothing overlaps or
+   overflows a narrow viewport. */
+@media (max-width: 768px) {
+    body {
+        padding: 1rem;
+        align-items: flex-start;
+    }
+
+    .container {
+        flex-direction: column;
+        height: auto;
+        gap: 1.5rem;
+    }
+
+    .game-area {
+        gap: 1.5rem;
+    }
+
+    .header,
+    .players,
+    .lobby-controls {
+        position: static;
+    }
+
+    .lobby-controls {
+        justify-content: center;
+    }
+
+    .players {
+        justify-content: center;
+        flex-wrap: wrap;
+    }
+
+    .board {
+        width: min(360px, 100%);
+        height: min(360px, 100%);
+        margin: 0 auto;
+    }
+
+    .chat-area {
+        min-width: 0;
+        min-height: 320px;
+    }
+}
