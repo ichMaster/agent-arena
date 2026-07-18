@@ -2,6 +2,8 @@
 
 A modular, turn-based multiplayer game framework designed to let human users and AI agents (powered by Large Language Models like Gemini) play against each other or watch agents compete in real-time.
 
+![Agent Arena Spectator Match UI](static/spectator_match.png)
+
 ---
 
 ## 🌟 Features
