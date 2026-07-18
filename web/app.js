@@ -15,6 +15,8 @@ let ws = null;
 let currentMatchId = null;
 let myToken = null;
 let myPlayerName = null;
+let mySymbol = null;
+let isGameActive = true;
 
 async function hostMatch() {
     const response = await fetch('/api/v1/lobby/match', { method: 'POST' });
@@ -71,19 +73,64 @@ function connectSocket() {
 }
 
 function routeEvent({ event, payload }) {
-    // Rendering the board/chat from these events is implemented in v04.03
-    // (renderBoard/renderChat); this router just dispatches and logs for now.
     switch (event) {
         case 'joined':
+            mySymbol = payload.symbol;
+            initPlayerCards(mySymbol);
+            renderBoard(payload.board, payload.current_turn, payload.valid_moves);
+            break;
         case 'state_update':
+            renderBoard(payload.board, payload.current_turn, payload.valid_moves);
+            break;
         case 'chat_message':
         case 'game_over':
         case 'error':
+            // Wired up in v04.03/ARENA-031.
             console.log(`[${event}]`, payload);
             break;
         default:
             console.warn('Unknown event type:', event, payload);
     }
+}
+
+function initPlayerCards(symbol) {
+    const otherSymbol = symbol === 'X' ? 'O' : 'X';
+    const humanSymbolEl = document.querySelector('#player-card-human .player-symbol');
+    const agentSymbolEl = document.querySelector('#player-card-agent .player-symbol');
+    humanSymbolEl.textContent = symbol;
+    humanSymbolEl.className = `player-symbol player-symbol-${symbol.toLowerCase()}`;
+    agentSymbolEl.textContent = otherSymbol;
+    agentSymbolEl.className = `player-symbol player-symbol-${otherSymbol.toLowerCase()}`;
+}
+
+function renderBoard(board, currentTurn, validMoves) {
+    board.forEach((mark, index) => {
+        const cell = document.getElementById(`cell-${index}`);
+        cell.textContent = mark || '';
+        cell.classList.remove('x', 'o');
+        if (mark === 'X' || mark === 'O') cell.classList.add(mark.toLowerCase());
+    });
+
+    const isMyTurn = isGameActive && currentTurn === mySymbol;
+    document.getElementById('player-card-human').classList.toggle('active', currentTurn === mySymbol);
+    document.getElementById('player-card-agent').classList.toggle('active', currentTurn !== mySymbol);
+
+    board.forEach((mark, index) => {
+        const cell = document.getElementById(`cell-${index}`);
+        const isValid = !validMoves || validMoves.includes(index);
+        cell.classList.toggle('disabled', !(isMyTurn && !mark && isValid));
+    });
+}
+
+function handleCellClick(index) {
+    if (!ws || ws.readyState !== WebSocket.OPEN || !isGameActive) return;
+    const cell = document.getElementById(`cell-${index}`);
+    if (cell.classList.contains('disabled')) return;
+    ws.send(JSON.stringify({ action: 'submit_move', payload: { move: index } }));
+}
+
+for (let i = 0; i < 9; i++) {
+    document.getElementById(`cell-${i}`).addEventListener('click', () => handleCellClick(i));
 }
 
 els.hostBtn.addEventListener('click', hostMatch);
