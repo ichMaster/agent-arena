@@ -18,10 +18,10 @@ class LLMClient(abc.ABC):
         pass
 
 class GeminiClient(LLMClient):
-    def __init__(self, temperature: float = 0.7):
+    def __init__(self, temperature: float = 0.7, model_name: str = "gemini-3.5-flash"):
         api_key = os.getenv("GEMINI_API_KEY")
         self.client = genai.Client(api_key=api_key)
-        self.model = "gemini-3.1-pro"
+        self.model = model_name
         self.temperature = temperature
 
     async def generate_response(self, prompt: str) -> str:

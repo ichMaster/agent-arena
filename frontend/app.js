@@ -11,6 +11,7 @@ const WS_BASE = "ws://localhost:8000/ws";
 // DOM Elements
 const btnHost = document.getElementById('btn-host');
 const btnJoin = document.getElementById('btn-join');
+const btnWatch = document.getElementById('btn-watch');
 const inputJoinId = document.getElementById('join-match-id');
 const matchIdDisplay = document.getElementById('match-id-display');
 const connectionDot = document.getElementById('connection-dot');
@@ -69,7 +70,7 @@ async function hostMatch() {
     }
 }
 
-async function joinExistingMatch(matchIdToJoin = null) {
+async function joinExistingMatch(matchIdToJoin = null, role = "player") {
     const matchId = matchIdToJoin || inputJoinId.value.trim();
     if (!matchId) return alert("Please enter a Match ID");
     
@@ -87,17 +88,17 @@ async function joinExistingMatch(matchIdToJoin = null) {
         currentMatchId = matchId;
         matchIdDisplay.innerText = `Match: ${currentMatchId}`;
         
-        connectWebSocket();
+        connectWebSocket(role);
     } catch (e) {
         console.error("Failed to join match", e);
         alert("Failed to join match.");
     }
 }
 
-function connectWebSocket() {
+function connectWebSocket(role = "player") {
     if (ws) ws.close();
     
-    ws = new WebSocket(`${WS_BASE}/match/${currentMatchId}?token=${currentToken}`);
+    ws = new WebSocket(`${WS_BASE}/match/${currentMatchId}?token=${currentToken}&role=${role}`);
     
     ws.onopen = () => {
         connectionDot.className = "dot connected";
@@ -155,7 +156,8 @@ function connectWebSocket() {
 
 // Bindings
 btnHost.addEventListener('click', hostMatch);
-btnJoin.addEventListener('click', () => joinExistingMatch());
+btnJoin.addEventListener('click', () => joinExistingMatch(null, "player"));
+btnWatch.addEventListener('click', () => joinExistingMatch(null, "spectator"));
 
 cells.forEach(cell => {
     cell.addEventListener('click', () => {

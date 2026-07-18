@@ -45,12 +45,12 @@ async def join_match(request: JoinRequest):
     return {"token": token}
 
 @app.websocket("/ws/match/{match_id}")
-async def websocket_endpoint(websocket: WebSocket, match_id: str, token: str = None):
+async def websocket_endpoint(websocket: WebSocket, match_id: str, token: str = None, role: str = "player", symbol: str = None, first_move: str = None):
     if not token or token not in valid_tokens:
         await websocket.close(code=1008)
         return
 
-    await manager.connect(websocket, match_id)
+    await manager.connect(websocket, match_id, role, symbol, first_move)
     try:
         while True:
             try:
@@ -85,3 +85,9 @@ async def websocket_endpoint(websocket: WebSocket, match_id: str, token: str = N
                 await websocket.send_json({"error": "invalid payload"})
     except WebSocketDisconnect:
         manager.disconnect(websocket, match_id)
+
+from fastapi.staticfiles import StaticFiles
+import os
+
+frontend_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "frontend")
+app.mount("/", StaticFiles(directory=frontend_path, html=True), name="frontend")

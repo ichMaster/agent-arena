@@ -4,7 +4,7 @@ from games.interface import GameInterface
 class TicTacToe(GameInterface):
     def __init__(self) -> None:
         self.board: typing.List[typing.Optional[str]] = [None] * 9
-        self.current_turn: str = "X"
+        self.current_turn: str = "O"
 
     def get_state(self) -> typing.Dict[str, typing.Any]:
         return {

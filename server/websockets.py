@@ -17,10 +17,13 @@ class ActiveMatch:
         self.game = TicTacToe()
         self.player_symbols: dict[WebSocket, str] = {}
 
-    def add_player(self, websocket: WebSocket):
-        if len(self.player_symbols) == 0:
+    def add_player(self, websocket: WebSocket, requested_symbol: str = None):
+        current_symbols = list(self.player_symbols.values())
+        if requested_symbol and requested_symbol not in current_symbols:
+            self.player_symbols[websocket] = requested_symbol
+        elif "X" not in current_symbols:
             self.player_symbols[websocket] = "X"
-        elif len(self.player_symbols) == 1:
+        elif "O" not in current_symbols:
             self.player_symbols[websocket] = "O"
 
 class ConnectionManager:
@@ -28,17 +31,22 @@ class ConnectionManager:
         self.active_connections: dict[str, list[WebSocket]] = {}
         self.active_matches: dict[str, ActiveMatch] = {}
 
-    async def connect(self, websocket: WebSocket, match_id: str):
+    async def connect(self, websocket: WebSocket, match_id: str, role: str = "player", symbol: str = None, first_move: str = None):
         await websocket.accept()
         if match_id not in self.active_connections:
             self.active_connections[match_id] = []
             self.active_matches[match_id] = ActiveMatch(match_id)
             
         self.active_connections[match_id].append(websocket)
-        self.active_matches[match_id].add_player(websocket)
+        
+        if first_move:
+             self.active_matches[match_id].game.current_turn = first_move
+
+        if role != "spectator":
+            self.active_matches[match_id].add_player(websocket, symbol)
         
         state = self.active_matches[match_id].game.get_state()
-        symbol = self.active_matches[match_id].player_symbols[websocket]
+        symbol = self.active_matches[match_id].player_symbols.get(websocket, "Spectator")
         await websocket.send_json(ServerPushEvent(
             event_type="connected", 
             data={"symbol": symbol, "state": state}
