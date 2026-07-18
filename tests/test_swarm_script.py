@@ -30,3 +30,18 @@ def test_swarm_script_targets_the_real_lobby_endpoint_and_symbols() -> None:
     assert "--symbol X" in content
     assert "--symbol O" in content
     assert "client/agent.py" in content
+
+
+def test_swarm_script_waits_for_the_first_agent_before_starting_the_second() -> None:
+    """Regression: launching both agents concurrently races for who actually
+    connects first (the server assigns X/O by connection order, not by
+    --symbol) — the script must block on Aggressor-Prime's own connection
+    confirmation before starting Nervous-Nelly, and it must do so BEFORE the
+    second agent's launch line appears in the file."""
+    content = SCRIPT_PATH.read_text()
+    assert "Joined as" in content  # the exact log line client/agent.py prints on connect
+
+    wait_index = content.index('grep -q "Joined as"')
+    aggressive_launch_index = content.index("--symbol X")
+    cowardly_launch_index = content.index("--symbol O")
+    assert aggressive_launch_index < wait_index < cowardly_launch_index

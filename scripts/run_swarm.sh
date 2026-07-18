@@ -38,6 +38,30 @@ echo "Starting Aggressor-Prime as X..."
 ) >"${AGGRESSIVE_LOG}" 2>&1 &
 AGGRESSIVE_PID=$!
 
+# The server assigns X/O purely by WebSocket connection order, not by
+# --symbol — launching both agents concurrently would race for who actually
+# connects first, silently flipping which persona plays which side. Wait for
+# Aggressor-Prime's own "Joined as" confirmation in its log before starting
+# the second agent, so the connection order (and therefore X/O) is
+# deterministic rather than a race.
+echo "Waiting for Aggressor-Prime to connect before starting the second agent..."
+CONNECT_TIMEOUT_TICKS=50 # 50 * 0.2s = 10s
+for _ in $(seq 1 "${CONNECT_TIMEOUT_TICKS}"); do
+    if grep -q "Joined as" "${AGGRESSIVE_LOG}" 2>/dev/null; then
+        break
+    fi
+    if ! kill -0 "${AGGRESSIVE_PID}" 2>/dev/null; then
+        echo "ERROR: Aggressor-Prime exited before connecting — check ${AGGRESSIVE_LOG}" >&2
+        cat "${AGGRESSIVE_LOG}" >&2
+        exit 1
+    fi
+    sleep 0.2
+done
+if ! grep -q "Joined as" "${AGGRESSIVE_LOG}" 2>/dev/null; then
+    echo "ERROR: Aggressor-Prime did not connect within ${CONNECT_TIMEOUT_TICKS} attempts — check ${AGGRESSIVE_LOG}" >&2
+    exit 1
+fi
+
 echo "Starting Nervous-Nelly as O..."
 (
     cd "${PROJECT_ROOT}"
