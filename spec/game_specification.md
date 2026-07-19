@@ -19,7 +19,7 @@ The framework is designed broad but built narrow. This table is the contract for
 | Players | 1 human + 1 agent, or 2 agents | — |
 | Agent model | Anthropic **Haiku** only | Other Anthropic tiers / other vendors, via the `LLMClient` seam |
 | Web UI | Player view (play + chat) | Admin/observer dashboard across all games |
-| Persistence | In-memory match state (durable enough to survive a reconnect) | Durable match **history** you can review after the fact |
+| Persistence | **SQLite** (matches, seats, moves, chat) via SQLAlchemy — survives a server restart | A **UI to review** past matches (the data is already persisted) |
 | Watching a match | **Observer role** — a human can watch the single live match (especially agent-vs-agent) without holding a seat | Many concurrent spectators; a cross-match observer/admin dashboard |
 | Operator input | Read-only (watch the agent think) | Human co-piloting the agent mid-game |
 
@@ -88,7 +88,7 @@ A configuration layer for building distinct agent identities without touching co
 
 ## 6. Phased Implementation Plan
 
-Five dependency-ordered phases. Each is **independently demoable** and leaves the system in a working state — no phase depends on a later one. Persistence beyond in-memory match state, additional games, additional vendors, and the admin dashboard are all **out of these phases** (see the §2 scope table).
+Five dependency-ordered phases. Each is **independently demoable** and leaves the system in a working state — no phase depends on a later one. A history-review UI, additional games, additional vendors, and the admin dashboard are all **out of these phases** (see the §2 scope table).
 
 Phases map onto the `vXX` version prefix (Phase 1 → `v01`, …); the build workflow later decomposes each into `vXX.YY` sub-versions and `ARENA-xxx` issues. Every phase ships its own tests, and **the LLM is always mocked in tests** — never a paid call.
 
@@ -97,7 +97,8 @@ Phases map onto the `vXX` version prefix (Phase 1 → `v01`, …); the build wor
 **Delivers:**
 - `GameInterface` (abstract) + a fully unit-tested **Tic-Tac-Toe** module (`get_state`/`get_valid_moves`/`apply_move`/`is_game_over`); move payload opaque to transport.
 - FastAPI app skeleton, health endpoint, and the `/ui` static mount (stubbed until Phase 3).
-- In-memory **match + seat state**: token-based seat assignment per §4 (seats by per-connection token, never by name; observers hold no seat).
+- **SQLite persistence** (SQLAlchemy async + a `Repository`): `matches`, `participants`/seats, `moves`, `chat` tables; durable across restart.
+- **Match + seat state** over that store: token-based seat assignment per §4 (seats by per-connection token, never by name; observers hold no seat); board reconstructed from the move log.
 - **Connection Manager** (connect/disconnect/broadcast, match routing) and the server-push event set (`joined`/`your_turn`, `state_update`, `chat_message`, `game_over`, `error`).
 - Lobby REST (create match, join → issue token). Every move **re-validated server-side**.
 
