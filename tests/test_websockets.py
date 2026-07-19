@@ -251,3 +251,32 @@ async def test_winning_move_broadcasts_game_over_and_closes_room(repository: Rep
         assert global_manager.connection_count(match_id) == 0
     finally:
         clear_match(match_id)
+
+
+async def test_winning_moves_state_update_reports_no_current_turn(repository: Repository) -> None:
+    """Regression: the state_update broadcast for the WINNING move itself
+    reported the parity-computed current_turn (e.g. 'O' right after X's
+    winning move) even though the game had already ended. A client that
+    decides whether to act by checking current_turn == its own symbol (e.g.
+    AgentSession.is_my_turn in client/agent.py) reads that state_update —
+    which arrives before the follow-up game_over message is processed — and
+    tries to submit another move/chat into a room the server is about to
+    close, crashing with ConnectionClosedOK instead of just seeing the game
+    end. The terminal move's state_update must report current_turn: None so
+    no one is invited to act on it."""
+    match_id = str(uuid.uuid4())
+    await repository.create_match(match_id)
+    ws_x, ws_o = FakeWebSocket(), FakeWebSocket()
+    await global_manager.connect(match_id, ws_x)
+    await global_manager.connect(match_id, ws_o)
+    try:
+        for sender, move in [("Ada", 0), ("Bob", 3), ("Ada", 1), ("Bob", 4), ("Ada", 2)]:
+            await handle_client_message(
+                repository, match_id, sender, sender, {"action": "submit_move", "payload": {"move": move}}
+            )
+
+        winning_state_update = ws_x.sent[-2]
+        assert winning_state_update["event"] == "state_update"
+        assert winning_state_update["payload"]["current_turn"] is None
+    finally:
+        clear_match(match_id)

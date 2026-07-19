@@ -140,20 +140,30 @@ async def _handle_submit_move(
     await repository.log_move(match_id, player_id=symbol, move_payload={"move": move})
 
     state = match.game.get_state()
+    result = match.game.is_game_over()
     await manager.broadcast(
         match_id,
         ServerPushEvent(
             event="state_update",
             payload={
                 "board": state["board"],
-                "current_turn": match.current_turn,
+                # None (not the parity-computed X/O) once this move ends the
+                # game — Match.current_turn only tracks move parity and has
+                # no idea the game just ended, so without this check the
+                # winning move's own state_update would still claim it's the
+                # other symbol's turn. A client that checks current_turn ==
+                # its own symbol to decide whether to act (e.g.
+                # AgentSession.is_my_turn in client/agent.py) would read that
+                # and try to submit another move/chat — into a room the
+                # very next broadcast (game_over) closes — crashing with
+                # ConnectionClosedOK instead of just seeing the game end.
+                "current_turn": None if result is not None else match.current_turn,
                 "valid_moves": match.game.get_valid_moves(),
                 "last_move": {"player": symbol, "move": move},
             },
         ),
     )
 
-    result = match.game.is_game_over()
     if result is not None:
         await manager.broadcast(match_id, ServerPushEvent(event="game_over", payload={"result": result}))
         clear_match(match_id)

@@ -16,7 +16,7 @@ A modular, turn-based multiplayer framework where human players and AI agents (p
 The Agent Client operates completely autonomously, separated from the Server. It runs as a persistent Python process.
 - **Event Loop:** The agent listens asynchronously for WebSocket push events. Right after connecting it receives a one-time `joined` event carrying its assigned symbol (X/O — assigned by connection order) and the current board/turn; from then on it acts whenever a `state_update` event's `current_turn` matches its own symbol. (As-implemented, the server never sends a distinct `your_turn` event — `joined` covers "is it my turn on connect" and `state_update` covers every turn after.) The full event set:
   - `joined` — sent once, right after accept: `symbol`, `board`, `current_turn`, `valid_moves`.
-  - `state_update` — sent after every valid move: `board`, `current_turn`, `valid_moves`, `last_move`.
+  - `state_update` — sent after every valid move: `board`, `current_turn`, `valid_moves`, `last_move`. `current_turn` is `null` on the move that ends the game (instead of the parity-computed X/O) — this state_update always precedes a `game_over` broadcast, and a client that acted on the stale X/O value here would try to submit into a room the server is about to close.
   - `chat_message` — sent after a chat action: `sender`, `message`.
   - `game_over` — sent when the game ends: `result` (`"X"`/`"O"`/`"draw"`); the server then closes every connection in the room.
   - `error` — sent on an invalid/malformed message: `detail`.

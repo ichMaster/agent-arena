@@ -21,7 +21,7 @@ Clients connect to `ws://<server>/ws/match/{match_id}?token=<token>` (token from
 | Event | Sent | Payload |
 |---|---|---|
 | `joined` | once, right after connecting | `symbol` (this connection's assigned X/O — assigned by connection order), `board`, `current_turn`, `valid_moves` |
-| `state_update` | after every valid move | `board`, `current_turn`, `valid_moves`, `last_move` |
+| `state_update` | after every valid move | `board`, `current_turn` (`null` on the game-ending move — always followed by `game_over`), `valid_moves`, `last_move` |
 | `chat_message` | after a chat action | `sender`, `message` |
 | `game_over` | when the game ends | `result` (`"X"` / `"O"` / `"draw"`) — the server then closes every connection in the room |
 | `error` | on an invalid/malformed message | `detail` |
