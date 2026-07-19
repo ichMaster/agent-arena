@@ -10,6 +10,8 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from games.interface import GameInterface
+from games.tictactoe import TicTacToe
 from server.models import ChatMessage, Match, Move, Participant
 
 _SYMBOLS: tuple[str, str] = ("X", "O")
@@ -84,3 +86,27 @@ class Repository:
         if participant is not None and participant.symbol is not None:
             participant.symbol = None
             await self._session.commit()
+
+    async def reconstruct_game(self, match_id: str) -> GameInterface:
+        """Rebuild live state by replaying the ordered move log through a fresh ``TicTacToe``.
+
+        The move log is the source of truth (§5.1); no board snapshot is stored, so no
+        serialize/deserialize is added to ``GameInterface``.
+        """
+        moves = (
+            await self._session.execute(
+                select(Move).where(Move.match_id == match_id).order_by(Move.id)
+            )
+        ).scalars().all()
+        game: GameInterface = TicTacToe()
+        for move in moves:
+            game.apply_move(move.player_symbol, move.move)
+        return game
+
+    async def current_turn(self, match_id: str) -> str | None:
+        """Derive whose turn it is: move-count parity (X on even), ``None`` once the game is over."""
+        game = await self.reconstruct_game(match_id)
+        if game.is_game_over() is not None:
+            return None
+        filled = sum(1 for cell in game.get_state()["board"] if cell)
+        return _SYMBOLS[filled % 2]
