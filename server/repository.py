@@ -7,9 +7,12 @@ Every DB read/write goes through here; no ad-hoc SQL lives in handlers. One ``Re
 
 from typing import Any
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from server.models import ChatMessage, Match, Move, Participant
+
+_SYMBOLS: tuple[str, str] = ("X", "O")
 
 
 class Repository:
@@ -45,3 +48,39 @@ class Repository:
     async def log_chat(self, match_id: str, sender: str, message: str) -> None:
         self._session.add(ChatMessage(match_id=match_id, sender=sender, message=message))
         await self._session.commit()
+
+    async def assign_symbol(self, match_id: str, token: str) -> str | None:
+        """Assign a seat to ``token`` per the §5.2 rule; write-through, keyed by token not name.
+
+        Order: unknown token or spectator -> None; already seated -> that symbol (idempotent
+        reconnect); both seats taken -> None; else the first free symbol (X then O), persisted.
+        ``UNIQUE(match_id, symbol)`` guards a concurrent double-assign.
+        """
+        participant = await self._session.get(Participant, token)
+        if participant is None or participant.is_spectator:
+            return None
+        if participant.symbol is not None:
+            return participant.symbol  # idempotent reconnect
+        taken = set(
+            (
+                await self._session.execute(
+                    select(Participant.symbol).where(
+                        Participant.match_id == match_id,
+                        Participant.symbol.is_not(None),
+                    )
+                )
+            ).scalars().all()
+        )
+        for symbol in _SYMBOLS:
+            if symbol not in taken:
+                participant.symbol = symbol
+                await self._session.commit()
+                return symbol
+        return None  # both seats taken
+
+    async def release_seat(self, match_id: str, token: str) -> None:
+        """Clear ``token``'s seat so a reconnect can reclaim the freed symbol."""
+        participant = await self._session.get(Participant, token)
+        if participant is not None and participant.symbol is not None:
+            participant.symbol = None
+            await self._session.commit()
