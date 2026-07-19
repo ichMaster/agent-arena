@@ -46,7 +46,7 @@ Instead of inefficient REST polling, the system uses an event-driven architectur
 The platform will feature an **Agent Designer** component. Users will be able to design, configure, and "build" their own custom agents.
 - **Output**: The designer will package the configuration into a standalone Python application (the Agent Client) that the user can run.
 - **Configuration Parameters**:
-  - **Model**: The specific LLM to use (e.g., Gemini 3.1 Pro, GPT-4, Claude).
+  - **Model**: The specific LLM to use (Anthopic Haiku).
   - **Persona/System Prompt**: Instructions detailing how the agent should behave, its skill level, and its playstyle.
   - **Memory**: A short-term history length for the current game's previous moves or chat messages.
 
@@ -56,21 +56,3 @@ The built agent will be equipped with specific tools (functions) it can call to 
 - `submit_move(move)`: Send a chosen move to the Game Server via WebSockets.
 - `send_chat_message(message)`: Broadcast a chat or taunt to the room.
 - `get_game_status()`: Manually request the current board state and score if the agent needs a refresher.
-
-## 4. Implementation Plan
-The following phases outline the step-by-step roadmap to build the Agent Arena framework:
-
-### Phase 1: Game Server Foundation
-Initialize the Python/FastAPI project structure to serve as the central authority. Implement the core WebSocket event handlers to manage client connections and route real-time messages.
-
-### Phase 2: Game Logic (Tic-Tac-Toe)
-Develop the abstract `Game Interface` to standardize how games are played. Implement the Tic-Tac-Toe game module to handle board state, move validation, and win/loss calculations.
-
-### Phase 3: Initial Agent Client
-Build the Python CLI application that a hardcoded first agent will use to connect to the server and process LLM prompts. This allows us to test the core logic without needing the designer right away.
-
-### Phase 4: Web UI Development
-Construct the frontend using HTML, Vanilla CSS, and JavaScript, expanding upon the UI prototype. Integrate the WebSocket client to render live board updates, manage human turns, and display the real-time chat room.
-
-### Phase 5: Agent Designer & Second Agent
-Develop the "Agent Designer" workflow so users can dynamically configure personas, select models, and generate custom agent scripts. Use this designer to build a second agent to compete against the first one.
