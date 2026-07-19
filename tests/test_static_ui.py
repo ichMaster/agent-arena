@@ -81,3 +81,16 @@ def test_ui_has_a_real_spectate_action_distinct_from_join() -> None:
 def test_ui_join_and_host_still_default_to_non_spectator() -> None:
     js = client.get("/ui/app.js").text
     assert "promptAndJoin(false)" in js
+
+
+def test_ui_resets_game_active_state_when_starting_a_new_match() -> None:
+    """Regression: handleGameOver sets isGameActive = false and nothing ever
+    flipped it back. Hosting/joining a second match in the same browser tab
+    (no full page reload) left isGameActive stuck false forever — every board
+    cell renders disabled and handleCellClick no-ops, so the player could
+    create a brand new match but never actually submit a move in it."""
+    js = client.get("/ui/app.js").text
+    start = js.index("async function promptAndJoin")
+    end = js.index("function connectSocket")
+    promptAndJoin_body = js[start:end]
+    assert "isGameActive = true" in promptAndJoin_body

@@ -58,6 +58,12 @@ async function spectateMatch() {
 }
 
 async function promptAndJoin(isSpectator) {
+    // A previous match in this same tab may have ended (handleGameOver sets
+    // isGameActive = false and never flips it back) — without resetting here,
+    // hosting/joining a new match without a full page reload would leave
+    // every board cell permanently disabled, so the player could create a
+    // match but never actually submit a move in it.
+    isGameActive = true;
     myPlayerName = window.prompt('Enter your name:', isSpectator ? 'Spectator' : 'Human') || 'Human';
     const response = await fetch('/api/v1/lobby/join', {
         method: 'POST',
