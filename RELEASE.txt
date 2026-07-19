@@ -1,6 +1,27 @@
 AgentArena — Release Notes
 ==========================
 
+Version 01.02.00 (2026-07-19)
+-----------------------------
+Phase v01.02 — Persistence layer (SQLite).
+Git tag: opus-v01.02.00 (namespaced — the shared repo's v01.02.00 tag belongs to a
+sibling branch; this is the independent Opus build).
+
+- Async SQLite persistence: an async SQLAlchemy engine over sqlite+aiosqlite (config-driven
+  URL), async_sessionmaker(expire_on_commit=False), a connect-time PRAGMA foreign_keys=ON,
+  and init_models(). The four ORM tables (matches, participants, moves, chat_messages) with
+  match_id foreign keys and UNIQUE(match_id, symbol); opaque move payloads stored as JSON so
+  their type round-trips. (ARENA-OPUS-004)
+- Repository: the single access seam for durable state — create_match, get_match,
+  add_participant, log_move, log_chat. State survives a process restart. (ARENA-OPUS-005)
+- Seat rule (§5.2): assign_symbol / release_seat, keyed by token not display name — spectators
+  never get a seat; a third player gets none; reconnects are idempotent. (ARENA-OPUS-006)
+- Reconstruction: reconstruct_game replays the ordered move log through a fresh TicTacToe (no
+  serialize step on GameInterface); current_turn is move-count parity, None once over.
+  (ARENA-OPUS-007)
+- Quality: 72 tests passing; mypy --strict clean; no model touched and no paid calls anywhere
+  (persistence is pure server/DB logic; the LLMClient seam arrives in v02.01).
+
 Version 01.01.00 (2026-07-19)
 -----------------------------
 Phase v01.01 — Project skeleton & the game engine.
