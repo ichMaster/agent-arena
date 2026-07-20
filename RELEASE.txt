@@ -1,6 +1,21 @@
 AgentArena — Release Notes
 ==========================
 
+Version 02.03.01 (2026-07-21)
+-----------------------------
+Post-release hardening patch — the end-of-phase HARDEN sweep of /ship-phase v02
+--harden closing the remaining MEDIUM code-review findings (v01.04 #2 and #4).
+Git tag: opus-v02.03.01.
+
+- Malformed WebSocket JSON (or a non-object message) now yields an `error` event
+  and KEEPS the connection, instead of tearing the socket down. (review #4)
+- The WS cleanup releases a dropped player's seat under asyncio.shield, so a
+  client-initiated drop (async cancellation) can no longer leak the seat; a
+  reconnecting or new participant reclaims it. (review #2)
+- Both fixes ship regression tests (garbage-input survival; drop-and-reclaim).
+  These pre-address the corresponding v05.01 resilience tasks.
+- Quality: 174 tests passing (deterministic); mypy --strict clean; zero paid calls.
+
 Version 02.03.00 (2026-07-21)
 -----------------------------
 Version v02.03 — Agent event loop & decision play. THE v02 RELEASE GATE: phase
