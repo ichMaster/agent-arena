@@ -14,10 +14,14 @@ import json
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from starlette.middleware.base import RequestResponseEndpoint
+from starlette.responses import Response
 from starlette.websockets import WebSocketState
 
 from server.auth import issue_token, validate_token
@@ -38,6 +42,9 @@ from server.websockets import (
 )
 
 APP_VERSION = "02.03.02"  # bumped by /release-version on each phase release
+
+# The Web UI lives in web/ at the repo root; resolve from this file so it's CWD-independent (§8).
+WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 
 async def get_repository(request: Request) -> AsyncIterator[Repository]:
@@ -191,6 +198,16 @@ def create_app(
     application.state.session_maker = resolved_maker
     application.state.manager = ConnectionManager()  # in-memory live sockets (§10)
 
+    @application.middleware("http")
+    async def no_store_for_ui(request: Request, call_next: RequestResponseEndpoint) -> Response:
+        # Serve the UI fresh (§3): an edit is never masked by browser caching. Match the mount
+        # exactly ("/ui" or "/ui/…") so unrelated paths like /uikit are never swept in.
+        response = await call_next(request)
+        path = request.url.path
+        if path == "/ui" or path.startswith("/ui/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
     @application.get("/api/v1/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -223,6 +240,10 @@ def create_app(
         manager: ConnectionManager = websocket.app.state.manager
         maker: async_sessionmaker[AsyncSession] = websocket.app.state.session_maker
         await _ws_connection(websocket, match_id, manager, maker)
+
+    # Serve the vanilla Web UI at /ui (html=True → /ui/ serves index.html). Mounted last so it
+    # never shadows the /api and /ws routes above (§3, §8).
+    application.mount("/ui", StaticFiles(directory=str(WEB_DIR), html=True), name="ui")
 
     return application
 
