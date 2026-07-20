@@ -134,9 +134,10 @@ Three regions inside a centered `max-width: 1180px` container:
   | Opponent agent | `agent-o` | right | pink-tinted bubble, sender label in `--o` |
   | System notice | `system` | centered | dashed, muted (e.g. "Match started", "Your move", "Game over — X wins!") |
 
-  Sender label is derived: a `chat_message` whose `sender` equals the client's own player name renders
-  as "you" (left/blue); everyone else renders on the right/pink. (This is presentation only — chat is
-  non-authoritative flavor, §6.)
+  Sender label is derived: a `chat_message` whose `sender` equals the client's own **seat symbol**
+  (`mySymbol`) renders as "you" (left/blue); everyone else renders on the right/pink. (The server
+  broadcasts `chat_message.sender` as the seat symbol `"X"`/`"O"` — see architecture.md §6.2 — not the
+  player name; this is presentation only, chat is non-authoritative flavor, §6.)
 - **Input row:** a text input ("Message the room…") + **Send**. Disabled until the socket is open;
   in the MVP, disabled entirely for Observers (§5).
 
