@@ -23,7 +23,7 @@ from server.database import init_models
 from server.repository import Repository
 from server.schemas import JoinRequest, JoinResponse, MatchCreatedResponse
 
-APP_VERSION = "01.02.00"  # bumped by /release-version on each phase release
+APP_VERSION = "01.03.00"  # bumped by /release-version on each phase release
 
 
 async def get_repository(request: Request) -> AsyncIterator[Repository]:
