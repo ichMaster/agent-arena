@@ -30,8 +30,8 @@ def _match(client: TestClient) -> str:
     return str(client.post("/api/v1/lobby/match").json()["match_id"])
 
 
-def _join(client: TestClient, match_id: str, name: str) -> str:
-    body = {"match_id": match_id, "player_name": name}
+def _join(client: TestClient, match_id: str, name: str, spectator: bool = False) -> str:
+    body = {"match_id": match_id, "player_name": name, "spectator": spectator}
     return str(client.post("/api/v1/lobby/join", json=body).json()["token"])
 
 
@@ -58,3 +58,23 @@ def test_chat_is_broadcast_to_all_and_persisted(lobby: TestClient, tmp_path: Pat
     finally:
         connection.close()
     assert ("X", "prepare to lose") in rows
+
+
+def test_observer_chat_is_rejected(lobby: TestClient, tmp_path: Path) -> None:
+    """A spectator cannot post chat — the server (authority) rejects it (§3.3)."""
+    match_id = _match(lobby)
+    observer = _join(lobby, match_id, "Watcher", spectator=True)
+    with lobby.websocket_connect(f"/ws/match/{match_id}?token={observer}") as ws:
+        ws.receive_json()  # joined with symbol null
+        ws.send_json({"action": "chat", "payload": {"message": "sneaky"}})
+        evt = ws.receive_json()
+    assert evt["event"] == "error"
+    assert "observer" in evt["payload"]["detail"].lower()
+
+    # Nothing was persisted.
+    connection = sqlite3.connect(tmp_path / DB_NAME)
+    try:
+        count = connection.execute("SELECT COUNT(*) FROM chat_messages").fetchone()[0]
+    finally:
+        connection.close()
+    assert count == 0

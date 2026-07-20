@@ -46,6 +46,15 @@ def test_join_unknown_match_returns_404(client: TestClient) -> None:
     assert response.status_code == 404
 
 
+def test_join_empty_player_name_returns_400(client: TestClient) -> None:
+    match_id = client.post("/api/v1/lobby/match").json()["match_id"]
+    for bad_name in ["", "   "]:
+        response = client.post(
+            "/api/v1/lobby/join", json={"match_id": match_id, "player_name": bad_name}
+        )
+        assert response.status_code == 400
+
+
 def test_spectator_join_is_flagged_as_observer(client: TestClient, tmp_path: Path) -> None:
     match_id = client.post("/api/v1/lobby/match").json()["match_id"]
     token = client.post(

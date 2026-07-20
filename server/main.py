@@ -68,11 +68,13 @@ async def _handle_action(
 ) -> None:
     """Dispatch a client->server action (§5.4/§6.2)."""
     if action == "chat":
-        sender = symbol or "observer"
+        if symbol is None:  # observers watch read-only (§3.3) — enforced server-side
+            await manager.send_to(websocket, error_event("observers cannot chat"))
+            return
         message = str(payload.get("message", ""))
         async with session_maker() as session:
-            await Repository(session).log_chat(match_id, sender, message)
-        await manager.broadcast(match_id, chat_message_event(sender, message))
+            await Repository(session).log_chat(match_id, symbol, message)
+        await manager.broadcast(match_id, chat_message_event(symbol, message))
         return
 
     if action == "submit_move":
@@ -193,6 +195,8 @@ def create_app(
         body: JoinRequest,
         repository: Repository = Depends(get_repository),
     ) -> JoinResponse:
+        if not body.player_name.strip():
+            raise HTTPException(status_code=400, detail="player_name must not be empty")
         if await repository.get_match(body.match_id) is None:
             raise HTTPException(status_code=404, detail="match not found")
         token = issue_token()
