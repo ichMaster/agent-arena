@@ -15,12 +15,19 @@ if not __package__:  # direct-run shim: `python agent/agent.py ...` from the rep
 import argparse  # noqa: E402
 import asyncio  # noqa: E402
 import io  # noqa: E402
+import random  # noqa: E402
+from typing import Final  # noqa: E402
 
 import httpx  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
 
 from agent.llm import LLMClient, create_llm_client, load_api_key  # noqa: E402
+from agent.memory import MemoryWindow  # noqa: E402
 from agent.profile import AgentProfile  # noqa: E402
+from agent.prompt import build_prompt  # noqa: E402
+from agent.schemas import AgentResponse  # noqa: E402
+
+MAX_MOVE_ATTEMPTS: Final = 3
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -56,6 +63,39 @@ async def join_match(
     finally:
         if owns_client:
             await http.aclose()
+
+
+async def choose_move(
+    llm: LLMClient,
+    memory: MemoryWindow,
+    board: list[str],
+    valid_moves: list[int],
+    persona: str,
+) -> tuple[int, str]:
+    """Decide → validate → retry (≤ ``MAX_MOVE_ATTEMPTS``) → random-legal fallback (§7.1).
+
+    An illegal, unparseable, or erroring model reply counts as a failed attempt; retries tell the
+    model why the previous choice was rejected. On exhaustion the agent plays a random *legal* move
+    rather than stalling the match.
+    """
+    prompt = build_prompt(memory, board, valid_moves, persona)
+    for attempt in range(1, MAX_MOVE_ATTEMPTS + 1):
+        try:
+            reply = await llm.generate_structured_response(prompt, AgentResponse)
+        except Exception as exc:  # model/validation failure — a failed attempt, never a stall
+            print(f"[agent] model error on attempt {attempt}: {exc}")
+            continue
+        if reply.move in valid_moves:
+            print(f"[agent] move {reply.move} — {reply.comment}")
+            return reply.move, reply.comment
+        print(f"[agent] illegal move {reply.move} on attempt {attempt}; retrying")
+        prompt = (  # feed the rejection back so the retry isn't a blind re-roll
+            f"{prompt}\n\nYour previous choice {reply.move} was rejected as illegal. "
+            "Choose strictly from the legal moves listed above."
+        )
+    move = random.choice(valid_moves)
+    print(f"[agent] falling back to a random legal move: {move}")
+    return move, "Switching it up."
 
 
 async def run_agent(
