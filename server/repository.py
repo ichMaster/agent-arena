@@ -8,6 +8,7 @@ Every DB read/write goes through here; no ad-hoc SQL lives in handlers. One ``Re
 from typing import Any
 
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from games.interface import GameInterface
@@ -67,29 +68,38 @@ class Repository:
 
         Order: unknown token or spectator -> None; already seated -> that symbol (idempotent
         reconnect); both seats taken -> None; else the first free symbol (X then O), persisted.
-        ``UNIQUE(match_id, symbol)`` guards a concurrent double-assign.
+
+        ``UNIQUE(match_id, symbol)`` guards a concurrent double-assign: if two connections race and
+        both pick the same free symbol, one commit raises ``IntegrityError``; we roll back, re-read
+        the taken set, and retry with the now-remaining symbol (bounded to the two symbols).
         """
-        participant = await self._session.get(Participant, token)
-        if participant is None or participant.is_spectator:
-            return None
-        if participant.symbol is not None:
-            return participant.symbol  # idempotent reconnect
-        taken = set(
-            (
-                await self._session.execute(
-                    select(Participant.symbol).where(
-                        Participant.match_id == match_id,
-                        Participant.symbol.is_not(None),
+        for _ in range(len(_SYMBOLS) + 1):  # bounded retry — at most one conflict per symbol
+            participant = await self._session.get(Participant, token)
+            if participant is None or participant.is_spectator:
+                return None
+            if participant.symbol is not None:
+                return participant.symbol  # idempotent reconnect
+            taken = set(
+                (
+                    await self._session.execute(
+                        select(Participant.symbol).where(
+                            Participant.match_id == match_id,
+                            Participant.symbol.is_not(None),
+                        )
                     )
-                )
-            ).scalars().all()
-        )
-        for symbol in _SYMBOLS:
-            if symbol not in taken:
-                participant.symbol = symbol
+                ).scalars().all()
+            )
+            free = next((symbol for symbol in _SYMBOLS if symbol not in taken), None)
+            if free is None:
+                return None  # both seats taken
+            participant.symbol = free
+            try:
                 await self._session.commit()
-                return symbol
-        return None  # both seats taken
+            except IntegrityError:
+                await self._session.rollback()  # another connection took `free` first — retry
+                continue
+            return free
+        return None
 
     async def release_seat(self, match_id: str, token: str) -> None:
         """Clear ``token``'s seat so a reconnect can reclaim the freed symbol."""
