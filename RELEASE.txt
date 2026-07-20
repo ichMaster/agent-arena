@@ -1,6 +1,29 @@
 AgentArena — Release Notes
 ==========================
 
+Version 03.01.00 (2026-07-21)
+-----------------------------
+Phase v03 (Web UI — Player & Observer) begins. Version v03.01 — static UI shell &
+connection. Shipped via /ship-phase. Git tag: opus-v03.01.00.
+
+- Static Web UI served at /ui (StaticFiles html=True, dir resolved from the repo
+  root) with Cache-Control: no-store on /ui/* so edits aren't masked by browser
+  caching; non-/ui routes unaffected. (ARENA-OPUS-025)
+- The "arena" shell (web/index.html + web/styles.css) mirroring the design source
+  ui_prototype.html: app bar with the FULL (untruncated) match id, a 3x3 board of
+  real <button> cells, player cards, and a chat panel; responsive single-column
+  collapse and a prefers-reduced-motion guard; self-contained (system fonts, no
+  CDN). (ARENA-OPUS-026)
+- web/app.js: Host/Join/Observe -> REST lobby -> ONE WebSocket; a connection-status
+  indicator; setMatchIdDisplay shows the full id (no truncation anywhere); a
+  routeEvent dispatcher with a case per server event (board/chat rendering land in
+  v03.02/03); isGameActive reset guard for a second match in the same tab.
+  (ARENA-OPUS-027)
+- Review: no HIGH/MEDIUM; the no-store middleware now matches /ui exactly (was a
+  loose prefix match); error-surfacing deferred to v03.03.
+- Quality: 184 tests passing (deterministic); mypy --strict clean; the UI never
+  touches a model -- zero paid calls.
+
 Version 02.03.02 (2026-07-21)
 -----------------------------
 Tooling-only patch — no server/agent/game behavior change.
