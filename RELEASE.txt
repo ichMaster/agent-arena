@@ -1,6 +1,17 @@
 AgentArena — Release Notes
 ==========================
 
+Version 02.03.02 (2026-07-21)
+-----------------------------
+Tooling-only patch — no server/agent/game behavior change.
+Git tag: opus-v02.03.02.
+
+- scripts/play.py: a manual terminal play/observe client for local testing until
+  the Web UI arrives in v03. Joins over REST, drives one WebSocket, renders the
+  board, prints moves/chat, prompts for a move on your turn, handles game_over.
+  Pure external client (httpx + websockets; imports nothing from server/). Used
+  for manual agent-vs-human and agent-vs-agent runs.
+
 Version 02.03.01 (2026-07-21)
 -----------------------------
 Post-release hardening patch — the end-of-phase HARDEN sweep of /ship-phase v02
