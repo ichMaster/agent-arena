@@ -127,13 +127,15 @@ function renderBoard(board, currentTurn, validMoves) {
 // Two cards; the one whose symbol equals current_turn is .active (neither when current_turn is null).
 // Null-safe for the Observer (mySymbol === null) — never calls null.toLowerCase() (§5).
 function renderPlayers(currentTurn) {
+  const observer = mySymbol === null;   // role is server-decided (§5); never inferred otherwise
   ['X', 'O'].forEach((sym) => {
+    // sym is always "X"/"O" (never null) — safe to lowercase; we never call mySymbol.toLowerCase().
     const card = byId('card-' + sym.toLowerCase());
     const name = byId('name-' + sym.toLowerCase());
     const role = byId('role-' + sym.toLowerCase());
-    const isMe = mySymbol !== null && sym === mySymbol;
+    const isMe = !observer && sym === mySymbol;
     if (name) name.textContent = isMe ? 'You' : ('Player ' + sym);
-    if (role) role.textContent = isMe ? 'Human · Player' : 'Haiku · Agent';
+    if (role) role.textContent = observer ? 'Observer' : (isMe ? 'Human · Player' : 'Haiku · Agent');
     if (card) card.classList.toggle('active', currentTurn === sym);
   });
 }
