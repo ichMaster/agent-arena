@@ -6,7 +6,11 @@ imported from ``server/``.
 """
 
 from collections import deque
-from typing import Any
+from typing import Any, Final
+
+# Remembered chat is bounded so one long opponent message can't bloat every later prompt
+# (code review v02.02 #2).
+_MAX_CHAT_LENGTH: Final = 160
 
 
 class MemoryWindow:
@@ -21,6 +25,8 @@ class MemoryWindow:
         self._events.append(f"{player} played {move}")
 
     def record_chat(self, sender: str, message: str) -> None:
+        if len(message) > _MAX_CHAT_LENGTH:
+            message = message[:_MAX_CHAT_LENGTH] + "…"
         self._events.append(f'{sender} said: "{message}"')
 
     def events(self) -> list[str]:
