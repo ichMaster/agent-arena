@@ -54,6 +54,14 @@ class Repository:
         self._session.add(ChatMessage(match_id=match_id, sender=sender, message=message))
         await self._session.commit()
 
+    async def finish_match(self, match_id: str, result: str) -> None:
+        """Mark a match finished with its result (``X``/``O``/``draw``)."""
+        match = await self._session.get(Match, match_id)
+        if match is not None:
+            match.status = "finished"
+            match.result = result
+            await self._session.commit()
+
     async def assign_symbol(self, match_id: str, token: str) -> str | None:
         """Assign a seat to ``token`` per the §5.2 rule; write-through, keyed by token not name.
 
