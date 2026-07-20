@@ -1,6 +1,31 @@
 AgentArena — Release Notes
 ==========================
 
+Version 02.02.00 (2026-07-21)
+-----------------------------
+Version v02.02 — Profile, persona, memory & prompt: the MVP Agent Designer
+surface. Shipped via the /ship-phase pipeline (generate -> upload -> execute ->
+review-and-fix -> release).
+Git tag: opus-v02.02.00 (namespaced — the independent Opus build).
+
+- AgentProfile (agent/profile.py): a strictly-typed persona/model/memory config
+  loaded from YAML — name, system_prompt, model_type (feeds create_llm_client;
+  default "haiku"), temperature (0..1), memory_limit (>0); unknown keys rejected;
+  clear errors for missing/invalid/non-mapping files. First sample persona:
+  profiles/aggressive.yml ("Blaze"). (ARENA-OPUS-019)
+- MemoryWindow (agent/memory.py): a bounded rolling window of recent moves +
+  chat, oldest evicted first; events() returns an oldest-first copy.
+  (ARENA-OPUS-020)
+- build_prompt (agent/prompt.py): persona + recent events + the pushed board
+  (empty cells shown by index) + legal moves -> one decision prompt whose reply
+  contract matches AgentResponse{move, comment}. (ARENA-OPUS-021)
+- Code review (same cycle): opponent chat is now explicitly framed as banter,
+  never instructions (prompt-injection guard), and remembered chat is length-
+  bounded so a huge message can't bloat later prompts. Server-side chat length
+  cap recorded for v05.01.
+- Quality: 159 tests passing (deterministic); mypy --strict clean; no model call
+  anywhere in code or tests — zero paid calls.
+
 Version 02.01.00 (2026-07-21)
 -----------------------------
 Phase v02 (Agent Client — Haiku) begins. Version v02.01 — the LLMClient seam &
