@@ -24,7 +24,13 @@ from server.database import init_models
 from server.match import assign_symbol, release_seat
 from server.repository import Repository
 from server.schemas import JoinRequest, JoinResponse, MatchCreatedResponse
-from server.websockets import ConnectionManager, error_event, joined_event, parse_action
+from server.websockets import (
+    ConnectionManager,
+    chat_message_event,
+    error_event,
+    joined_event,
+    parse_action,
+)
 
 APP_VERSION = "01.03.00"  # bumped by /release-version on each phase release
 
@@ -57,7 +63,14 @@ async def _handle_action(
     action: str | None,
     payload: dict[str, Any],
 ) -> None:
-    """Dispatch a client->server action. The `chat` and `submit_move` handlers land in 014/015."""
+    """Dispatch a client->server action. The `submit_move` handler lands in 015."""
+    if action == "chat":
+        sender = symbol or "observer"
+        message = str(payload.get("message", ""))
+        async with session_maker() as session:
+            await Repository(session).log_chat(match_id, sender, message)
+        await manager.broadcast(match_id, chat_message_event(sender, message))
+        return
     await manager.send_to(websocket, error_event(f"unknown action: {action}"))
 
 
