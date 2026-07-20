@@ -1,6 +1,27 @@
 AgentArena — Release Notes
 ==========================
 
+Version 03.03.00 (2026-07-21)
+-----------------------------
+Version v03.03 — Chat & the Observer role. THE v03 RELEASE GATE: the Web UI phase
+is functionally complete — a human can host/join and play, chat, and watch an
+agent-vs-agent match read-only in the browser. Shipped via /ship-phase.
+Git tag: opus-v03.03.00.
+
+- Chat (web/app.js): the form sends a `chat` action (never optimistic); chat_message
+  renders a bubble built with textContent (untrusted content, no innerHTML), styled
+  self-vs-other by seat symbol (sender === mySymbol); system lines for game over and
+  surfaced errors. (ARENA-OPUS-030)
+- Observer role (v03 gate): a joined with symbol:null renders a read-only view --
+  cards "Observer", chat input suppressed, board never enabled, null-safe -- never
+  claiming a seat. Proven end-to-end against the real server: no seat, forced
+  submit_move/chat refused server-side. (ARENA-OPUS-031)
+- Reconciliation: chat_message.sender is the seat symbol (not the player name);
+  web_ui_specification §4.4 corrected to match the wire contract. v03.01 review #2
+  (error surfacing) fixed here.
+- Quality: 198 tests passing (deterministic); mypy --strict clean; the UI never
+  touches a model -- zero paid calls.
+
 Version 03.02.00 (2026-07-21)
 -----------------------------
 Version v03.02 — Board & gameplay (Player role). A human can now play a full game
