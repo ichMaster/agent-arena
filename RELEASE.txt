@@ -1,6 +1,28 @@
 AgentArena — Release Notes
 ==========================
 
+Version 02.03.00 (2026-07-21)
+-----------------------------
+Version v02.03 — Agent event loop & decision play. THE v02 RELEASE GATE: phase
+v02 (Agent Client — Haiku) is functionally complete. Shipped via /ship-phase.
+Git tag: opus-v02.03.00 (namespaced — the independent Opus build).
+
+- Runnable agent CLI: `python agent/agent.py --match-id <id> --profile
+  profiles/aggressive.yml` — .env key loading (python-dotenv; closes review #7),
+  profile -> create_llm_client, REST join, WS session, clean exit on room close.
+  Runtime deps: httpx, websockets, python-dotenv. (ARENA-OPUS-022)
+- choose_move: decide -> validate against valid_moves -> retry (<=3, with the
+  rejection fed back into the retry prompt) -> random-LEGAL fallback, so a
+  hallucinated move never stalls the match. (ARENA-OPUS-023)
+- AgentSession + run loop: acts only when current_turn == its symbol (never on
+  the terminal state_update or as an observer), records opponent moves + chat
+  into the bounded memory window, sends one {chat, submit_move} per turn.
+  Integration-proven against the real server with a scripted mock LLM, incl.
+  the illegal->retry path. (ARENA-OPUS-024)
+- Review: no HIGH/MEDIUM findings; reconnect stays v05.01 scope.
+- Quality: 172 tests passing (deterministic); mypy --strict clean; the LLM is
+  mocked in every test — zero paid calls.
+
 Version 02.02.00 (2026-07-21)
 -----------------------------
 Version v02.02 — Profile, persona, memory & prompt: the MVP Agent Designer
