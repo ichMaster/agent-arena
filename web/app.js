@@ -90,7 +90,10 @@ function openSocket(matchId, token) {
   ws = new WebSocket(wsBase() + '/ws/match/' + matchId + '?token=' + token);
   ws.addEventListener('open', () => setConnectionStatus('connected'));
   ws.addEventListener('message', (ev) => routeEvent(JSON.parse(ev.data)));
-  ws.addEventListener('close', () => { if (isGameActive) setConnectionStatus('disconnected'); });
+  ws.addEventListener('close', () => {
+    setChatEnabled(false);
+    if (isGameActive) setConnectionStatus('disconnected');
+  });
 }
 
 // Guard every send: only when the socket is OPEN (web_ui_spec §6.3).
@@ -185,6 +188,59 @@ function resetPlayState() {
   }
   const banner = byId('turn-banner');
   if (banner) banner.textContent = 'Connecting…';
+  const box = byId('messages');
+  if (box) box.textContent = '';
+}
+
+// --- Chat (web_ui_spec §4.4, §6) ---
+
+// Chat is built with textContent only — messages are untrusted content, never innerHTML.
+// Self-vs-other is by seat SYMBOL: the server broadcasts chat_message.sender as "X"/"O" (v01.04 #3),
+// NOT the player name (web_ui_spec §4.4's "player name" wording is stale; the wire contract wins).
+function renderChat(sender, message) {
+  const box = byId('messages');
+  if (!box) return;
+  const self = mySymbol !== null && sender === mySymbol;
+  const msg = document.createElement('div');
+  msg.className = 'msg ' + (self ? 'agent-x' : 'agent-o');
+  const who = document.createElement('p');
+  who.className = 'who';
+  who.textContent = self ? 'you' : String(sender);
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = message;
+  msg.appendChild(who);
+  msg.appendChild(bubble);
+  box.appendChild(msg);
+  box.scrollTop = box.scrollHeight;     // auto-scroll to newest
+}
+
+function renderSystem(text) {
+  const box = byId('messages');
+  if (!box) return;
+  const msg = document.createElement('div');
+  msg.className = 'msg system';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  msg.appendChild(bubble);
+  box.appendChild(msg);
+  box.scrollTop = box.scrollHeight;
+}
+
+function setChatEnabled(on) {
+  const input = byId('chat-input');
+  const send = byId('chat-send');
+  if (input) input.disabled = !on;
+  if (send) send.disabled = !on;
+}
+
+function submitChat() {
+  const input = byId('chat-input');
+  const text = input ? input.value.trim() : '';
+  if (!text) return;
+  sendAction('chat', { message: text });   // never optimistic — the server echoes it back
+  if (input) input.value = '';
 }
 
 // --- The single dispatcher (web_ui_spec §6.1). One case per server event. ---
@@ -199,6 +255,7 @@ function routeEvent(message) {
       renderPlayers(payload.current_turn);
       renderBoard(payload.board, payload.current_turn, payload.valid_moves);
       renderTurnBanner(payload.current_turn);
+      setChatEnabled(mySymbol !== null);       // players can post; Observers are read-only (§5)
       break;
     case 'state_update':
       renderBoard(payload.board, payload.current_turn, payload.valid_moves);
@@ -206,12 +263,14 @@ function routeEvent(message) {
       renderTurnBanner(payload.current_turn);
       break;
     case 'chat_message':
+      renderChat(payload.sender, payload.message);
       break;
     case 'game_over':
-      handleGameOver(payload.result);        // freeze + winning line + status + banner
+      handleGameOver(payload.result);          // freeze + winning line + status + banner
+      renderSystem(payload.result === 'draw' ? 'Game over — draw' : ('Game over — ' + payload.result + ' wins'));
       break;
     case 'error':
-      console.warn('server error:', payload.detail);
+      renderSystem('⚠ ' + payload.detail);      // surface as a system line, keep the connection (§6.1)
       break;
     default:
       break;
@@ -232,6 +291,8 @@ function wireUI() {
   if (host) host.addEventListener('click', () => hostMatch().catch((e) => console.error(e)));
   if (join) join.addEventListener('click', () => joinMatch().catch((e) => console.error(e)));
   if (observe) observe.addEventListener('click', () => spectateMatch().catch((e) => console.error(e)));
+  const chatForm = byId('chat-form');
+  if (chatForm) chatForm.addEventListener('submit', (e) => { e.preventDefault(); submitChat(); });
   wireBoard();
 }
 
@@ -246,5 +307,6 @@ if (typeof window !== 'undefined') {
     hostMatch, joinMatch, spectateMatch, joinAndConnect,
     routeEvent, sendAction, setConnectionStatus, setMatchIdDisplay,
     renderBoard, renderPlayers, handleCellClick, handleGameOver, resetPlayState,
+    renderChat, renderSystem, setChatEnabled, submitChat,
   };
 }
