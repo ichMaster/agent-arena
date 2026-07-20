@@ -35,7 +35,7 @@ from server.websockets import (
     state_update_event,
 )
 
-APP_VERSION = "01.03.00"  # bumped by /release-version on each phase release
+APP_VERSION = "01.04.00"  # bumped by /release-version on each phase release
 
 
 async def get_repository(request: Request) -> AsyncIterator[Repository]:
