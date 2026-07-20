@@ -16,6 +16,7 @@ from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from starlette.websockets import WebSocketState
 
 from server.auth import issue_token, validate_token
 from server.database import async_session_maker as default_session_maker
@@ -141,7 +142,9 @@ async def _ws_connection(
         symbol = await assign_symbol(session_maker, match_id, token)  # None for a spectator
         board, turn, valid_moves = await _current_state(session_maker, match_id)
         await manager.send_to(websocket, joined_event(symbol, board, turn, valid_moves))
-        while True:
+        # Stop looping once the socket is closed (e.g. close_room after game_over) so we never
+        # receive on a closed socket.
+        while websocket.application_state == WebSocketState.CONNECTED:
             raw = await websocket.receive_json()
             action, payload = parse_action(raw)
             await _handle_action(
