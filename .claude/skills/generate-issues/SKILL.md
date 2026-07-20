@@ -38,6 +38,25 @@ continue across phase files — never reset per phase.
    yet, start at `ARENA-001`.
 6. If `…/v{XX.YY}-issues.md` already exists, ask whether to overwrite or append.
 
+### Step 0.5: Reconcile with the real implementation
+
+Before decomposing, ground the phase in **what was actually built and fixed** — not just what
+`architecture.md` describes. Earlier phases (and prior versions) may have drifted the code from the
+docs via fixes and hardening; this phase must build on reality. Especially important when generating
+the **first phase of a new version** right after the previous version was implemented + fixed.
+
+1. For the components this phase touches (route by [architecture.md](../../../spec/architecture.md) §2),
+   read the **real current code** — the actual seams, method signatures, and behaviors as implemented,
+   not only the design in `architecture.md`.
+2. Read the completed phases' `spec/implementation/v*-execution-report.md` and any
+   `spec/implementation/*code-review*.md` — especially their **"Fixes applied" / "Architecture impact"**
+   notes — to see what changed during implementation, review, and hardening.
+3. **Reconcile:** if `architecture.md` is stale relative to a landed fix (a seam or contract evolved),
+   treat the **real implementation as ground truth** for this phase's issues, and note the drift. If a
+   contract genuinely changed but the doc wasn't updated, flag it and prefer correcting `architecture.md`
+   in the seam-touching issue (with its contract test). Decompose against the **actual** current
+   contracts so the new issues don't re-assume a design the code has already moved past.
+
 ### Step 1: Decompose the phase
 
 Turn the phase's **Tasks** into a small set of issues (typically **3–7**), each a

@@ -102,8 +102,11 @@ Edit the doc **in place**:
 - Flip the **Status** column to `✅ FIXED — <commit>` for each applied fix (and keep `⏳ deferred`
   for the rest).
 - Add a **"Fixes applied"** section: per fix, the change, the regression test, and the verification
-  (final `pytest` + `mypy` status). Note that no seam contract changed (or, if it did, that
-  architecture.md was updated with it).
+  (final `pytest` + `mypy` status). For any fix that **changed a documented contract or a
+  design-relevant behavior**, add an explicit **"Architecture impact"** note (what changed vs the
+  original design), and ensure `spec/architecture.md` reflects contract changes. This record is what a
+  later `/generate-issues` reconciles the next version against — so the next version builds on what was
+  really implemented, not the stale design.
 - Update **"Suggested next actions"** (e.g. `/release-version` for a patch on a released phase; carry
   deferred items into their phase).
 
@@ -125,8 +128,10 @@ adversarial pass (`/code-review ultra`) for confirmation.
 - **Every fix ships a regression test**, and the LLM is always mocked — no paid API call in any test.
 - **Green before, green after.** Establish a green baseline; only commit code that passes `pytest` +
   strict `mypy`; keep the suite deterministic.
-- **Contracts stay stable.** A seam change updates `spec/architecture.md` and its contract test in the
-  same commit.
+- **Record architecture deltas.** A seam/contract change updates `spec/architecture.md` and its contract
+  test in the **same** commit. Any fix that alters documented behavior gets an **"Architecture impact"**
+  note in the review doc — so the next `/generate-issues` can reconcile the following version against
+  what was really built, not the stale design.
 - **Never release.** No version bump, no tag — recommend `/release-version` and stop.
 - **Generate every line fresh.** Never `git checkout`/`cherry-pick`/merge code from a sibling branch.
 - **Ask on genuine ambiguity** — an unclear scope, or a borderline finding where fix-now vs defer is a
