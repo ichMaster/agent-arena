@@ -40,10 +40,11 @@ continue across phase files — never reset per phase.
 
 ### Step 0.5: Reconcile with the real implementation
 
-Before decomposing, ground the phase in **what was actually built and fixed** — not just what
-`architecture.md` describes. Earlier phases (and prior versions) may have drifted the code from the
-docs via fixes and hardening; this phase must build on reality. Especially important when generating
-the **first phase of a new version** right after the previous version was implemented + fixed.
+Before decomposing, ground the new `vXX.YY` in **what was actually built and fixed** — not just what
+`architecture.md` describes. Earlier `vXX.YY`s may have drifted the code from the docs via review
+fixes and hardening; the new issues must build on reality. This step is the **reconciliation after
+fixes**: it always runs right after the previous `vXX.YY` was implemented + fixed (+ released, in the
+`/ship-phase` pipeline), and its inputs are the real code plus the fix records listed below.
 
 1. For the components this phase touches (route by [architecture.md](../../../spec/architecture.md) §2),
    read the **real current code** — the actual seams, method signatures, and behaviors as implemented,
