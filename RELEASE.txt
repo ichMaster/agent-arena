@@ -1,6 +1,26 @@
 AgentArena — Release Notes
 ==========================
 
+Version 03.02.00 (2026-07-21)
+-----------------------------
+Version v03.02 — Board & gameplay (Player role). A human can now play a full game
+in the browser. Shipped via /ship-phase. Git tag: opus-v03.02.00.
+
+- renderBoard/renderPlayers/renderTurnBanner (web/app.js): the board renders
+  entirely from joined/state_update; each cell is playable only when empty, the
+  game is active, it's the human's turn, and the move is legal (real disabled
+  attribute); the active player card is highlighted; null-safe for the Observer.
+  (ARENA-OPUS-028)
+- handleCellClick -> submit_move (never optimistic — the board re-renders from the
+  resulting state_update); off-turn / finished / closed-socket / marked clicks are
+  ignored. handleGameOver freezes the board, derives + highlights the winning line
+  (none on a draw), and shows the result in status + banner. resetPlayState clears
+  a second match in the same tab (the §7 no-reload regression guard). (ARENA-OPUS-029)
+- Review: no HIGH/MEDIUM; opponent-name label deferred to v05 polish (the joined
+  payload carries no participant names).
+- Quality: 191 tests passing (deterministic); mypy --strict clean; the UI never
+  touches a model -- zero paid calls.
+
 Version 03.01.00 (2026-07-21)
 -----------------------------
 Phase v03 (Web UI — Player & Observer) begins. Version v03.01 — static UI shell &
