@@ -19,6 +19,7 @@ from sqlalchemy.ext.asyncio import (
     create_async_engine,
 )
 from sqlalchemy.orm import DeclarativeBase
+from sqlalchemy.pool import NullPool
 
 DEFAULT_DB_URL = "sqlite+aiosqlite:///./arena.db"
 
@@ -44,6 +45,10 @@ def create_engine(db_url: str | None = None, **kwargs: Any) -> AsyncEngine:
     ``db_url`` defaults to ``$ARENA_DB_URL`` then ``./arena.db``; tests pass a throwaway URL.
     """
     url = db_url or os.environ.get("ARENA_DB_URL", DEFAULT_DB_URL)
+    # NullPool: SQLite is a local file, so pooling buys little at MVP scale, and not retaining
+    # connections keeps engine teardown clean (no lingering aiosqlite connections to terminate
+    # across async tests) and re-runs the FK PRAGMA on every fresh connection.
+    kwargs.setdefault("poolclass", NullPool)
     new_engine = create_async_engine(url, **kwargs)
     _register_foreign_keys_pragma(new_engine)
     return new_engine
