@@ -13,7 +13,9 @@ This is a stable contract: any change to the method name/signature updates archi
 the contract test (``tests/test_llm_contract.py``) in the same commit.
 """
 
+import os
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from typing import TypeVar
 
 from anthropic import AsyncAnthropic
@@ -60,3 +62,31 @@ class AnthropicHaikuClient(LLMClient):
         if parsed is None:  # refusal / no structured output — never silently accepted
             raise ValueError("Anthropic Haiku returned no structured output")
         return parsed
+
+
+def create_llm_client(model_type: str, api_key: str, temperature: float) -> LLMClient:
+    """Config-driven vendor selection (§4.2) so ``agent/agent.py`` never imports a concrete client.
+
+    ``model_type`` is keyed off ``AgentProfile.model_type``. An unknown type raises; an empty
+    ``api_key`` is rejected.
+    """
+    if not api_key.strip():
+        raise ValueError("api_key is required to create an LLM client")
+    if model_type == "haiku":
+        return AnthropicHaikuClient(api_key=api_key, temperature=temperature)
+    raise ValueError(f"unknown model_type {model_type!r}; expected 'haiku'")
+
+
+def load_api_key(env: Mapping[str, str] | None = None) -> str:
+    """Read ``ANTHROPIC_API_KEY`` from the environment, aborting with a clear message if missing (§9).
+
+    The secret lives only in the agent process and is never logged.
+    """
+    values = os.environ if env is None else env
+    key = values.get("ANTHROPIC_API_KEY", "").strip()
+    if not key:
+        raise RuntimeError(
+            "ANTHROPIC_API_KEY is not set. The agent needs it to reach the model; "
+            "set it in the agent's .env (it never leaves the agent process)."
+        )
+    return key
