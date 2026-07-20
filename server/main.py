@@ -9,6 +9,8 @@ never touch ``./arena.db``; ``app = create_app()`` (bottom) is the process-wide 
 ``uvicorn server.main:app``.
 """
 
+import asyncio
+import json
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -147,7 +149,16 @@ async def _ws_connection(
         # Stop looping once the socket is closed (e.g. close_room after game_over) so we never
         # receive on a closed socket.
         while websocket.application_state == WebSocketState.CONNECTED:
-            raw = await websocket.receive_json()
+            text = await websocket.receive_text()
+            try:
+                raw = json.loads(text)
+            except json.JSONDecodeError:
+                # Malformed JSON yields an error event and keeps the connection (§9).
+                await manager.send_to(websocket, error_event("malformed JSON"))
+                continue
+            if not isinstance(raw, dict):
+                await manager.send_to(websocket, error_event("message must be a JSON object"))
+                continue
             action, payload = parse_action(raw)
             await _handle_action(
                 websocket, manager, session_maker, match_id, token, symbol, action, payload
@@ -156,8 +167,10 @@ async def _ws_connection(
         pass
     finally:
         # Cleanup always runs (§10): remove the socket and release the seat for reconnects.
+        # A client-initiated drop surfaces as task cancellation, which would interrupt a bare
+        # await mid-release — shield lets the release run to completion regardless.
         manager.disconnect(match_id, websocket)
-        await release_seat(session_maker, match_id, token)
+        await asyncio.shield(release_seat(session_maker, match_id, token))
 
 
 def create_app(
