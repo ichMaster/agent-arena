@@ -6,7 +6,11 @@ to embed. Oldest events fall off once the window is full. Pure logic — no I/O,
 """
 
 from collections import deque
-from typing import Any
+from typing import Any, Final
+
+# A long opponent message would otherwise be remembered whole and re-embedded into every later prompt
+# for the rest of the match -- wasted tokens, and it widens the prompt-injection surface (review #2).
+_MAX_CHAT_LENGTH: Final = 160
 
 
 class MemoryWindow:
@@ -21,6 +25,8 @@ class MemoryWindow:
         self._events.append(f"{player} played {move}")
 
     def record_chat(self, sender: str, message: str) -> None:
+        if len(message) > _MAX_CHAT_LENGTH:
+            message = message[:_MAX_CHAT_LENGTH] + "…"
         self._events.append(f'{sender} said: "{message}"')
 
     def events(self) -> list[str]:

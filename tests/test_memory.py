@@ -35,3 +35,12 @@ def test_non_positive_limit_raises() -> None:
     for bad in (0, -1):
         with pytest.raises(ValueError):
             MemoryWindow(limit=bad)
+
+
+def test_long_chat_is_truncated() -> None:
+    """review #2: an over-long remembered message is capped."""
+    mem = MemoryWindow(3)
+    mem.record_chat("O", "x" * 500)
+    event = mem.events()[0]
+    assert "…" in event
+    assert len(event) < 300  # sender label + ~160 chars + ellipsis, not 500
