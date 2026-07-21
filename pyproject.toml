@@ -13,6 +13,8 @@ dependencies = [
     "aiosqlite>=0.20",
     # Game Server: FastAPI app + lobby REST (and, later, the WebSocket hub).
     "fastapi>=0.110",
+    # Agent Client: the Anthropic SDK behind the LLMClient seam (Haiku). Always mocked in tests.
+    "anthropic>=0.100",
 ]
 
 [project.optional-dependencies]
