@@ -1,6 +1,32 @@
 AgentArena — Release Notes
 ==========================
 
+Version 01.03.00 (2026-07-21)
+------------------------------
+Phase v01.03 — Match, seats & lobby REST.
+Git tag: opus-sonnet-v01.03.00 (namespaced — this branch's independent build).
+
+- FastAPI app: server/main.py builds the app via create_app(...) with a lifespan
+  that runs init_models on startup, GET /api/v1/health, and a per-request
+  Repository dependency; server/schemas.py adds the lobby request/response
+  models. The app is now runnable with `uvicorn server.main:app`.
+  (ARENA-OPUS-SONNET-008)
+- Auth tokens: server/auth.py issues an opaque token that IS the
+  participant_id, with the frozen IssuedToken value object and validate_token
+  (None for unknown/other-match tokens). Identity is keyed by token, never by
+  display name. (ARENA-OPUS-SONNET-009)
+- Lobby REST: POST /api/v1/lobby/match creates a match and returns its id;
+  POST /api/v1/lobby/join returns 404 for an unknown match, else records the
+  participant (carrying is_spectator) and returns the token.
+  (ARENA-OPUS-SONNET-010)
+- Seat helpers: server/match.py provides thin assign_symbol / release_seat
+  wrappers over the Repository. End-to-end tests prove the seat-by-token
+  identity against real join tokens: two players get X/O, a third gets no
+  seat, a spectator is never seated, and two joins named "Human" get distinct
+  seats. (ARENA-OPUS-SONNET-011)
+- Quality: 81 tests passing; mypy --strict clean; no paid model calls anywhere
+  (lobby is REST + DB only; the LLMClient seam arrives in v02.01).
+
 Version 01.02.00 (2026-07-21)
 ------------------------------
 Phase v01.02 — Persistence layer (SQLite). The durable substrate every later
