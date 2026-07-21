@@ -4,11 +4,14 @@ Every read or write to matches, seats, moves, or chat goes through this class; n
 ad-hoc SQL of its own. One `Repository` wraps one `AsyncSession` supplied by the caller.
 """
 
-from typing import Any
+from typing import Any, Final
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from server.models import ChatMessage, Match, Move, Participant
+
+_SYMBOLS: Final = ("X", "O")
 
 
 class Repository:
@@ -44,3 +47,35 @@ class Repository:
     async def log_chat(self, match_id: str, sender: str, message: str) -> None:
         self._session.add(ChatMessage(match_id=match_id, sender=sender, message=message))
         await self._session.commit()
+
+    async def assign_symbol(self, match_id: str, token: str) -> str | None:
+        """The §5.2 seat rule, write-through over the `participants` row."""
+        participant = await self._session.get(Participant, token)
+        if participant is None or participant.is_spectator:
+            return None
+        if participant.symbol is not None:
+            return participant.symbol  # idempotent reconnect
+        taken = set(
+            (
+                await self._session.execute(
+                    select(Participant.symbol).where(
+                        Participant.match_id == match_id, Participant.symbol.is_not(None)
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        free = next((symbol for symbol in _SYMBOLS if symbol not in taken), None)
+        if free is None:
+            return None  # both seats already taken
+        participant.symbol = free
+        await self._session.commit()
+        return free
+
+    async def release_seat(self, match_id: str, token: str) -> None:
+        """Clear the participant's symbol so a later connection can reclaim it."""
+        participant = await self._session.get(Participant, token)
+        if participant is not None:
+            participant.symbol = None
+            await self._session.commit()
