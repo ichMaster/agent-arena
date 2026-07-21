@@ -9,6 +9,8 @@ from typing import Any, Final
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from games.interface import GameInterface
+from games.tictactoe import TicTacToe
 from server.models import ChatMessage, Match, Move, Participant
 
 _SYMBOLS: Final = ("X", "O")
@@ -79,3 +81,30 @@ class Repository:
         if participant is not None:
             participant.symbol = None
             await self._session.commit()
+
+    async def reconstruct_game(self, match_id: str) -> GameInterface:
+        """Rebuild live game state by replaying the ordered move log (architecture.md §5.1) --
+        `GameInterface` gains no serialize/deserialize step; replay from empty suffices."""
+        moves = (
+            await self._session.execute(
+                select(Move).where(Move.match_id == match_id).order_by(Move.id)
+            )
+        ).scalars().all()
+        game: GameInterface = TicTacToe()
+        for move_row in moves:
+            game.apply_move(move_row.player_symbol, move_row.move)
+        return game
+
+    async def current_turn(self, match_id: str) -> str | None:
+        """Derived from move-count parity (X on even); `None` once the game has ended."""
+        game = await self.reconstruct_game(match_id)
+        if game.is_game_over() is not None:
+            return None
+        move_count = len(
+            (
+                await self._session.execute(select(Move.id).where(Move.match_id == match_id))
+            )
+            .scalars()
+            .all()
+        )
+        return "X" if move_count % 2 == 0 else "O"
