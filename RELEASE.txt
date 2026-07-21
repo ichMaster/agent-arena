@@ -1,6 +1,21 @@
 AgentArena — Release Notes
 ==========================
 
+Version 04.02.00 (2026-07-21)
+------------------------------
+Version v04.02 — Arena orchestration script. **v04 release gate**: phase
+v04 (Agent-vs-Agent Orchestration) is complete.
+Git tag: opus-opus-v04.02.00 (namespaced — this branch's independent build).
+
+- scripts/run_arena.sh: one command creates a match, launches Ironclaw (X)
+  then waits for its join before launching Bastion (O) -- ordering, not a
+  flag, makes seats deterministic. Prints the full match id + Observe-not-
+  Join instructions; traps INT/TERM/EXIT to clean up; tails both logs.
+  (ARENA-OPUS-OPUS-033)
+- Review: no findings.
+- Quality: 176 tests passing; mypy --strict clean; zero paid calls in the
+  suite (the script's real Haiku calls only happen in a live demo).
+
 Version 04.01.00 (2026-07-21)
 ------------------------------
 Version v04.01 — Contrasting personas (the theater). First version of phase
