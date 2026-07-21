@@ -1,6 +1,23 @@
 AgentArena — Release Notes
 ==========================
 
+Version 03.01.00 (2026-07-21)
+------------------------------
+Version v03.01 — Static UI shell & connection. First version of phase v03
+(Web UI).
+Git tag: opus-opus-v03.01.00 (namespaced — this branch's independent build).
+
+- /ui static mount (CWD-independent) + a no-store middleware matching /ui
+  exactly (not a loose prefix). (ARENA-OPUS-OPUS-025)
+- web/index.html + styles.css: the arena shell mirroring ui_prototype.html
+  (glass tokens, real <button> cells, responsive collapse, reduced-motion),
+  self-contained. (ARENA-OPUS-OPUS-026)
+- web/app.js: lobby -> REST -> one WebSocket, full (untruncated) match-id
+  display, and a routeEvent case per server event; window.arena for tests.
+  (ARENA-OPUS-OPUS-027)
+- Review: no findings.
+- Quality: 150 tests passing; mypy --strict clean; zero paid calls.
+
 Version 02.03.00 (2026-07-21)
 ------------------------------
 Version v02.03 — Agent event loop & decision play. **v02 release gate**:
