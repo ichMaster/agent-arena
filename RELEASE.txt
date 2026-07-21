@@ -1,6 +1,25 @@
 AgentArena — Release Notes
 ==========================
 
+Version 02.03.00 (2026-07-21)
+------------------------------
+Version v02.03 — Agent event loop & decision play. **v02 release gate**:
+phase v02 (Agent Client) is complete.
+Git tag: opus-opus-v02.03.00 (namespaced — this branch's independent build).
+
+- Agent CLI: parse_args, load_environment (.env -> load_api_key, secret
+  stays in the agent), join_match over httpx. (ARENA-OPUS-OPUS-022)
+- choose_move: decide -> validate -> retry (MAX_MOVE_ATTEMPTS=3) ->
+  random-legal fallback, so a model failure never stalls. (ARENA-OPUS-OPUS-023)
+- AgentSession: acts only on its own turn (never the terminal null-turn
+  update), records opponent moves + chat, finishes on game_over; run_agent
+  + main() wire the live loop. Full game to game_over over the real server
+  (LLM mocked), exactly 4 model calls proving no act on the terminal
+  update. (ARENA-OPUS-OPUS-024)
+- Review: no HIGH/MEDIUM; 1 LOW (bare-traceback CLI ergonomics) deferred
+  to v05.
+- Quality: 138 tests passing; mypy --strict clean; zero paid calls.
+
 Version 02.02.00 (2026-07-21)
 ------------------------------
 Version v02.02 — Profile, persona, memory & prompt.
