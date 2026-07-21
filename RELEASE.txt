@@ -1,6 +1,26 @@
 AgentArena — Release Notes
 ==========================
 
+Version 05.01.00 (2026-07-21)
+------------------------------
+Version v05.01 — Resilience & reconnection. First version of phase v05.
+Git tag: opus-opus-v05.01.00 (namespaced — this branch's independent build).
+
+- server/main.py: the WS receive loop no longer crashes on malformed
+  input -- invalid JSON, valid-but-non-object JSON, and a raw binary
+  frame all yield a graceful error event and keep the connection open and
+  usable, closing a real gap found during reconciliation (this version's
+  own DoD was not actually implemented before this release).
+  (ARENA-OPUS-OPUS-034)
+- tests/test_reconnect.py: a same-token reconnect reclaims its seat after
+  a drop; the two-seat invariant holds with no leak. (ARENA-OPUS-OPUS-034)
+- Confirmed already shipped (v01.04/v02.03): seat release + shielded
+  finally cleanup, dead-socket broadcast pruning, bad-token 4001 close,
+  model-error legal fallback.
+- Review fix: a binary WS frame no longer crashes the connection either
+  (code review #1, MEDIUM).
+- Quality: 181 tests passing; mypy --strict clean; zero paid calls.
+
 Version 04.02.00 (2026-07-21)
 ------------------------------
 Version v04.02 — Arena orchestration script. **v04 release gate**: phase
