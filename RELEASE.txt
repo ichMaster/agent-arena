@@ -1,6 +1,26 @@
 AgentArena — Release Notes
 ==========================
 
+Version 05.01.00 (2026-07-21)
+-----------------------------
+Phase v05 (Hardening & Polish) begins. Version v05.01 — resilience & reconnection,
+shipped as a verification checkpoint. Git tag: opus-v05.01.00.
+
+- The v05.01 resilience behaviours were already delivered by earlier HARDEN sweeps
+  and fixes: seat release on disconnect under asyncio.shield (reclaimable), a
+  finally-based cleanup that treats cancellation like a disconnect, broadcast that
+  prunes a dead socket while still delivering to the rest, malformed JSON -> error
+  (connection kept), missing/invalid token -> close 4001, and model errors -> a
+  legal fallback move.
+- This version closes the one coverage gap (ARENA-OPUS-034, test-only): a
+  same-token reconnect reclaims its seat, and the two-seat invariant holds across a
+  drop/reconnect cycle (no leak). The execution report maps each DoD clause to its
+  covering test.
+- Review: no HIGH/MEDIUM; the fast-reconnect release-ordering window is self-healing
+  via assign_symbol (accepted, out of the checkpoint's scope).
+- Quality: 209 tests passing (new reconnect tests deterministic 5/5); mypy --strict
+  clean; no paid calls.
+
 Version 04.02.00 (2026-07-21)
 -----------------------------
 Version v04.02 — Arena orchestration script. THE v04 RELEASE GATE: one command
