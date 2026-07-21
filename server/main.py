@@ -7,6 +7,7 @@ phases. `create_app` builds the app bound to a given engine/session maker so tes
 """
 
 import asyncio
+import json
 import uuid
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
@@ -150,7 +151,15 @@ async def _ws_connection(
         board, turn, valid_moves = await _current_state(session_maker, match_id)
         await manager.send_to(websocket, joined_event(symbol, board, turn, valid_moves))
         while True:
-            raw = await websocket.receive_json()
+            text = await websocket.receive_text()
+            try:
+                raw = json.loads(text)
+            except json.JSONDecodeError:
+                await manager.send_to(websocket, error_event("malformed message"))
+                continue
+            if not isinstance(raw, dict):
+                await manager.send_to(websocket, error_event("malformed message"))
+                continue
             action, payload = parse_action(raw)
             await _handle_action(
                 websocket, manager, session_maker, match_id, token, symbol, action, payload
