@@ -28,8 +28,10 @@ from server.websockets import (
     ConnectionManager,
     chat_message_event,
     error_event,
+    game_over_event,
     joined_event,
     parse_action,
+    state_update_event,
 )
 
 APP_VERSION = "01.04.00"  # bumped by the release process on each phase release
@@ -74,7 +76,49 @@ async def _handle_action(
         await manager.broadcast(match_id, chat_message_event(sender, message))
         return
 
+    if action == "submit_move":
+        await _handle_submit_move(websocket, manager, session_maker, match_id, token, payload)
+        return
+
     await manager.send_to(websocket, error_event(f"unknown action: {action}"))
+
+
+async def _handle_submit_move(
+    websocket: WebSocket,
+    manager: ConnectionManager,
+    session_maker: async_sessionmaker[AsyncSession],
+    match_id: str,
+    token: str,
+    payload: dict[str, Any],
+) -> None:
+    """The §5.4 move authority flow — the server is the ultimate authority; every move re-validated."""
+    move = payload.get("move")
+    result: str | None = None
+    async with session_maker() as session:
+        repo = Repository(session)
+        seat = await repo.assign_symbol(match_id, token)  # idempotent; None for observer/no-seat
+        if seat is None:
+            await manager.send_to(websocket, error_event("no seat"))
+            return
+        game = await repo.reconstruct_game(match_id)
+        if seat != await repo.current_turn(match_id):
+            await manager.send_to(websocket, error_event("not your turn"))
+            return
+        if not game.apply_move(seat, move):
+            await manager.send_to(websocket, error_event("invalid move"))
+            return
+        await repo.log_move(match_id, seat, move)
+        result = game.is_game_over()
+        if result is not None:
+            await repo.finish_match(match_id, result)
+
+    # Re-derive from the persisted log: current_turn is None once the game just ended.
+    board, current_turn, valid_moves = await _current_state(session_maker, match_id)
+    last_move = {"player": seat, "move": move}
+    await manager.broadcast(match_id, state_update_event(board, current_turn, valid_moves, last_move))
+    if result is not None:
+        await manager.broadcast(match_id, game_over_event(result))
+        await manager.close_room(match_id)
 
 
 async def _ws_connection(

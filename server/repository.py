@@ -31,6 +31,14 @@ class Repository:
     async def get_participant(self, token: str) -> Participant | None:
         return await self._session.get(Participant, token)
 
+    async def finish_match(self, match_id: str, result: str) -> None:
+        """Mark a match finished with its result (§5.4, on the game-ending move)."""
+        match = await self._session.get(Match, match_id)
+        if match is not None:
+            match.status = "finished"
+            match.result = result
+            await self._session.commit()
+
     async def add_participant(
         self, token: str, match_id: str, player_name: str, is_spectator: bool = False
     ) -> None:
