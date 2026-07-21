@@ -1,6 +1,23 @@
 AgentArena — Release Notes
 ==========================
 
+Version 02.02.00 (2026-07-21)
+------------------------------
+Version v02.02 — Profile, persona, memory & prompt.
+Git tag: opus-opus-v02.02.00 (namespaced — this branch's independent build).
+
+- AgentProfile YAML loader (extra=forbid, bounded temperature/memory,
+  model_type feeds create_llm_client) + profiles/aggressive.yml
+  (Ironclaw). (ARENA-OPUS-OPUS-019)
+- MemoryWindow: a bounded rolling buffer of recent moves + chat.
+  (ARENA-OPUS-OPUS-020)
+- build_prompt: persona + memory + board + exactly-the-legal-moves into
+  one decision prompt. (ARENA-OPUS-OPUS-021)
+- Review fixes: opponent chat is now framed as never-instructions in the
+  prompt (MEDIUM prompt-injection guard) and remembered chat is capped at
+  160 chars (LOW) -- both with regression tests.
+- Quality: 126 tests passing; mypy --strict clean; zero paid calls.
+
 Version 02.01.00 (2026-07-21)
 ------------------------------
 Version v02.01 — LLMClient seam & the Anthropic Haiku client. First
