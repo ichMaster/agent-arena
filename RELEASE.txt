@@ -1,6 +1,22 @@
 AgentArena — Release Notes
 ==========================
 
+Version 03.02.00 (2026-07-21)
+------------------------------
+Version v03.02 — Board & gameplay (Player role).
+Git tag: opus-opus-v03.02.00 (namespaced — this branch's independent build).
+
+- renderBoard/renderPlayers/renderTurnBanner: the board renders from
+  joined/state_update; a cell is playable only on the human's legal turn
+  (real disabled attribute); the current-turn card is highlighted.
+  (ARENA-OPUS-OPUS-028)
+- handleCellClick -> submit_move (never optimistic); handleGameOver
+  freezes the board, derives + highlights the winning line client-side,
+  shows the result; resetPlayState clears a second in-tab match.
+  (ARENA-OPUS-OPUS-029)
+- Review: no HIGH/MEDIUM; 1 LOW (generic opponent label) deferred to v05.
+- Quality: 158 tests passing; mypy --strict clean; zero paid calls.
+
 Version 03.01.00 (2026-07-21)
 ------------------------------
 Version v03.01 — Static UI shell & connection. First version of phase v03
