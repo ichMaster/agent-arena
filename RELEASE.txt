@@ -1,6 +1,33 @@
 AgentArena — Release Notes
 ==========================
 
+Version 01.04.00 (2026-07-21)
+------------------------------
+Phase v01.04 — WebSocket protocol & move authority. This completes v01: two raw
+WebSocket clients can now play a full, server-validated Tic-Tac-Toe game with chat
+to game_over.
+Git tag: opus-sonnet-v01.04.00 (namespaced — this branch's independent build).
+
+- WebSocket protocol layer (server/websockets.py): the ConnectionManager (per-match
+  sockets + owner map, a serialize-once broadcast that prunes a dead socket, send_to,
+  close_room) and pure builders for the five server->client events (joined,
+  state_update, chat_message, game_over, error) plus inbound {action, payload} parsing.
+  (ARENA-OPUS-SONNET-012)
+- WS endpoint: GET /ws/match/{id}?token= validates the token (bad/missing -> close 4001),
+  connects, claims/reports the seat, sends joined, runs the receive loop, and cleans up
+  in a finally block (disconnect + shielded release_seat -- a client-initiated drop can
+  surface as task cancellation, not a clean WebSocketDisconnect; found and fixed during
+  this version's own execution). (ARENA-OPUS-SONNET-013)
+- Chat: a chat action persists the message and broadcasts chat_message to the room.
+  (ARENA-OPUS-SONNET-014)
+- Move authority (server/main.py, §5.4): every submit_move is re-validated server-side --
+  seat, turn, and legality. Illegal / out-of-turn / no-seat moves get an error. A legal
+  move persists and broadcasts state_update (current_turn null on the game-ending move,
+  with last_move); on game over the server broadcasts game_over and closes the room, and
+  marks the match finished with its result (Repository.finish_match). (ARENA-OPUS-SONNET-015)
+- Quality: 115 tests passing; mypy --strict clean; no model touched and no paid calls
+  anywhere (the LLMClient seam arrives in v02.01).
+
 Version 01.03.00 (2026-07-21)
 ------------------------------
 Phase v01.03 — Match, seats & lobby REST.
