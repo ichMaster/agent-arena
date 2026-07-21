@@ -1,0 +1,20 @@
+AgentArena — Release Notes
+==========================
+
+Version 01.01.00 (2026-07-21)
+------------------------------
+Version v01.01 — Project skeleton & the game engine. First version of
+phase v01 (Game Core & Server Foundation).
+Git tag: opus-opus-v01.01.00 (namespaced — this branch's independent build).
+
+- Repo skeleton: pyproject.toml (pytest + strict mypy, setuptools packages
+  pinned to games/server/agent), the architecture §2 package layout, and a
+  smoke test. (ARENA-OPUS-OPUS-001)
+- GameInterface abstract seam + contract test pinning the four §4.1
+  signatures. (ARENA-OPUS-OPUS-002)
+- TicTacToe engine (sole legality authority, never raises) + exhaustive
+  unit matrix: a win on each of the 8 lines, draw detection, per-category
+  illegal rejection, the get_valid_moves shrink invariant. (ARENA-OPUS-OPUS-003)
+- Review: no findings.
+- Quality: 22 tests passing; mypy --strict clean; zero paid calls (no model
+  involved this phase).
