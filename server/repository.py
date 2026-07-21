@@ -80,6 +80,14 @@ class Repository:
                 await self._session.rollback()  # lost the race for free[0] — retry re-reads taken
         return None
 
+    async def finish_match(self, match_id: str, result: str) -> None:
+        """Mark a match finished with its result (§5.4 step 4)."""
+        match = await self._session.get(Match, match_id)
+        if match is not None:
+            match.status = "finished"
+            match.result = result
+            await self._session.commit()
+
     async def release_seat(self, match_id: str, token: str) -> None:
         """Clear a participant's symbol so a reconnect can reclaim it (§5.2, §10 cleanup)."""
         participant = await self._session.get(Participant, token)
