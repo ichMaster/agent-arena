@@ -1,6 +1,24 @@
 AgentArena — Release Notes
 ==========================
 
+Version 01.02.00 (2026-07-21)
+------------------------------
+Version v01.02 — Persistence layer (SQLite).
+Git tag: opus-opus-v01.02.00 (namespaced — this branch's independent build).
+
+- Async SQLAlchemy engine over sqlite+aiosqlite (FK pragma, NullPool) +
+  the four ORM tables with UNIQUE(match_id, symbol) and an opaque JSON
+  move column. (ARENA-OPUS-OPUS-004)
+- Repository: the single access seam (matches/participants/moves/chat
+  CRUD; opaque move payload persisted as-is). (ARENA-OPUS-OPUS-005)
+- Seat rule (§5.2) keyed by token, built race-safe (retry on the UNIQUE
+  guard) -- an asyncio race resolves to distinct seats. (ARENA-OPUS-OPUS-006)
+- Game reconstruction by move-log replay + parity-derived current_turn
+  (None at game-over). (ARENA-OPUS-OPUS-007)
+- Review: no HIGH/MEDIUM; 1 LOW (double reconstruction in current_turn)
+  deferred to v05.01.
+- Quality: 47 tests passing; mypy --strict clean; zero paid calls.
+
 Version 01.01.00 (2026-07-21)
 ------------------------------
 Version v01.01 — Project skeleton & the game engine. First version of
