@@ -1,6 +1,22 @@
 AgentArena — Release Notes
 ==========================
 
+Version 02.01.00 (2026-07-21)
+------------------------------
+Version v02.01 — LLMClient seam & the Anthropic Haiku client. First
+version of phase v02 (Agent Client).
+Git tag: opus-opus-v02.01.00 (namespaced — this branch's independent build).
+
+- AgentResponse{move, comment} + the abstract LLMClient seam (async,
+  generic, server-free), pinned by a contract test. (ARENA-OPUS-OPUS-016)
+- AnthropicHaikuClient: structured output via messages.parse
+  (output_format) -> validated .parsed_output; model id claude-haiku-4-5.
+  SDK always mocked in tests. (ARENA-OPUS-OPUS-017)
+- create_llm_client config dispatch + fail-fast ANTHROPIC_API_KEY loading
+  (never logged; stays in the agent process). (ARENA-OPUS-OPUS-018)
+- Review: no findings (live-SDK call signature verified against the mock).
+- Quality: 105 tests passing; mypy --strict clean; zero paid calls.
+
 Version 01.04.00 (2026-07-21)
 ------------------------------
 Version v01.04 — WebSocket protocol & move authority. **v01 release gate**:
