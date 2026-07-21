@@ -1,0 +1,138 @@
+---
+name: review-and-fix-issues
+description: Code-review a release or the current branch, write a criticality-ranked recommendations doc in spec/implementation/, implement the fix-now items with regression tests, then record what was done in the SAME doc. Never releases.
+---
+
+# Skill: Review & Fix Issues
+
+Run one loop over a codebase: **review → recommend → fix → record.** It (1) performs a critical code
+review, (2) writes a single recommendations document ranking findings by criticality and marking
+each **FIX NOW** or **DEFER →**, (3) implements the fix-now items with regression tests, and (4)
+**updates that same document in place** — marking what was fixed and adding a "Fixes applied"
+section. The recommendations and the results live in **one document**.
+
+This skill fixes only the small, in-scope, high-value findings. It **never** bumps the version or
+cuts a release (that stays `/release-version`, explicit), and it never pulls deferred/larger work
+forward without flagging it.
+
+## Usage
+
+```
+/review-and-fix-issues [target]
+```
+
+- `/review-and-fix-issues v01.04` — review the released v01 phase/version (through its tag).
+- `/review-and-fix-issues` — review the **current branch / working tree** (everything built so far).
+- `/review-and-fix-issues agent` — scope the review to one component (`games`/`server`/`agent`/`web`).
+
+## Instructions
+
+### Step 0: Scope + green baseline
+
+1. Resolve `target`: a version/phase (`vXX`/`vXX.YY`) or its tag; a component (`games`/`server`/
+   `agent`/`web`); or, with no argument, the **current branch** (the whole codebase).
+2. Confirm we are on the working dev branch and the tree is clean.
+3. **Establish a green baseline** — run `pytest` + `mypy` (strict). If the suite is **red or flaky**,
+   say so: a review on a red baseline is unreliable. Fix a clear flake first (small, focused, its own
+   commit) or surface it and ask before continuing. **Never review or fix on top of a red suite.**
+
+### Step 1: Critical code review
+
+Read the in-scope modules — route by [architecture.md](../../../spec/architecture.md) §2 — and focus
+on the highest-risk seams first: the WS/authority flow and `ConnectionManager` (§5.3–§5.4, §6.2), the
+`Repository`/seat identity (§5.1–§5.2), the `LLMClient` seam (§4.2), and `GameInterface` (§4.1).
+
+Be **adversarial** — hunt for *real* defects, not restatements of what works:
+- **Concurrency:** races at `await` points, read-then-write without the DB guard handled, async
+  cancellation of cleanup (the §10 finally path), interleaving of two connections.
+- **Authority/identity:** any client claim trusted without server re-validation; seats by name not
+  token; observers acting; tokens leaking.
+- **Correctness:** move-log replay edge cases, terminal-state handling (`current_turn: null`), the
+  opaque-move round-trip, off-by-one/parity.
+- **Robustness:** malformed input, dropped sockets, unhandled exceptions that kill a connection.
+- **Input hygiene & secrets:** unvalidated lobby input; `ANTHROPIC_API_KEY` reaching or being logged
+  by `server/`/UI; anything a test would never call for real.
+- **Seam drift:** code that diverges from the pinned contracts or the `game_specification.md` scope.
+
+For each finding, capture: a **concrete failure scenario** (inputs → wrong result/crash), a
+`file:line` anchor, a **severity** (🔴 HIGH / 🟠 MEDIUM / 🟡 LOW), and a **proposed fix**. Cross-check
+findings against the specs; if a gap is *already scheduled* for a later phase (e.g. v05.01), note that
+rather than treating it as new.
+
+### Step 2: Write the recommendations document (the plan)
+
+Write **one** doc at `spec/implementation/<scope>-code-review.md` (e.g. `v01.04-code-review.md`, or
+`branch-code-review.md` for the working tree). Include:
+
+- A header: date, reviewer, **scope**, method.
+- A **criticality-ranked summary table** with columns: `# | Severity | Finding | Recommendation |
+  Status`. **Recommendation** is `FIX NOW` or `DEFER → <home>`; **Status** starts as blank/pending.
+- Per-finding detail: the failure scenario + the proposed fix.
+- A short **"What's solid"** section (keep the review balanced).
+- **Suggested next actions.**
+
+Decide **FIX NOW vs DEFER** honestly:
+- **FIX NOW** = real, small, self-contained, high-value, and in-scope now (e.g. a crash-causing race,
+  an authority-rule violation, trivial input validation).
+- **DEFER →** = larger resilience work, or anything already owned by a later roadmap phase — give the
+  home (`v05.01`, `v02.03`, "cleanup/`/simplify`", "documented MVP scope"). Do **not** pull these
+  forward.
+
+Commit the doc as the plan (a `docs:` commit).
+
+### Step 3: Implement the FIX-NOW items (with tests)
+
+For each **FIX NOW** finding, in criticality order:
+
+1. Implement the fix following `CLAUDE.md` + `spec/architecture.md`. Keep it minimal and in-scope.
+2. **Add a regression test that would have caught the bug** (e.g. a concurrent-path test for a race).
+   The **LLM is always mocked** — no paid call in any test.
+3. **Validate:** `pytest` (green, deterministic) + `mypy` (strict). Only commit code that passes.
+4. **Commit** one focused change per finding, referencing the finding number
+   (`fix(<area>): … (code review #N)`), with the `Co-Authored-By` trailer.
+5. **Seam changes** (`GameInterface`/`LLMClient`/WS protocol/seat-by-token) update
+   `spec/architecture.md` **and** the contract test in the **same** commit.
+
+If a fix turns out larger than "fix now" (touches a seam broadly, or needs design), **stop, re-classify
+it to DEFER** in the doc with the reason, and move on — don't half-land it.
+
+### Step 4: Update the SAME document (the result)
+
+Edit the doc **in place**:
+- Flip the **Status** column to `✅ FIXED — <commit>` for each applied fix (and keep `⏳ deferred`
+  for the rest).
+- Add a **"Fixes applied"** section: per fix, the change, the regression test, and the verification
+  (final `pytest` + `mypy` status). For any fix that **changed a documented contract or a
+  design-relevant behavior**, add an explicit **"Architecture impact"** note (what changed vs the
+  original design), and ensure `spec/architecture.md` reflects contract changes. This record is what a
+  later `/generate-issues` reconciles the next version against — so the next version builds on what was
+  really implemented, not the stale design.
+- Update **"Suggested next actions"** (e.g. `/release-version` for a patch on a released phase; carry
+  deferred items into their phase).
+
+Commit the doc update (a `docs:` commit).
+
+### Step 5: Report
+
+Summarize: findings by severity; which were **fixed** (with commits) and which **deferred** (with
+homes); the final green suite + strict-mypy status. If fixes landed on an already-released phase,
+suggest `/release-version <phase>.ZZ` (the `ZZ` patch) — but do **not** run it. Offer a deeper
+adversarial pass (`/code-review ultra`) for confirmation.
+
+## Important Rules
+
+- **One document, updated in place.** The recommendations and the results share a single doc — mark
+  what was fixed and add the "Fixes applied" section rather than writing a new file.
+- **Fix only the fix-now items.** Never pull deferred or larger work forward without re-classifying and
+  explaining it in the doc.
+- **Every fix ships a regression test**, and the LLM is always mocked — no paid API call in any test.
+- **Green before, green after.** Establish a green baseline; only commit code that passes `pytest` +
+  strict `mypy`; keep the suite deterministic.
+- **Record architecture deltas.** A seam/contract change updates `spec/architecture.md` and its contract
+  test in the **same** commit. Any fix that alters documented behavior gets an **"Architecture impact"**
+  note in the review doc — so the next `/generate-issues` can reconcile the following version against
+  what was really built, not the stale design.
+- **Never release.** No version bump, no tag — recommend `/release-version` and stop.
+- **Generate every line fresh.** Never `git checkout`/`cherry-pick`/merge code from a sibling branch.
+- **Ask on genuine ambiguity** — an unclear scope, or a borderline finding where fix-now vs defer is a
+  real judgment call the user should make.
