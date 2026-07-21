@@ -26,6 +26,11 @@ def test_readme_references_real_commands(token: str) -> None:
     assert token in README, f"README should document {token!r}"
 
 
+def test_readme_shows_how_to_open_the_web_ui() -> None:
+    # A newcomer must find the browsable UI URL up front, not buried in a mode.
+    assert "http://127.0.0.1:8000/ui" in README
+
+
 def test_readme_documents_all_three_run_modes() -> None:
     lowered = README.lower()
     assert "human vs agent" in lowered

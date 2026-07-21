@@ -54,6 +54,15 @@ Start the server (keep it running in one terminal):
 .venv/bin/uvicorn server.main:app --port 8000
 ```
 
+**Then open the Web UI in your browser:**
+
+> ### 👉 http://127.0.0.1:8000/ui
+
+That page **is** the arena — the app bar (with **Host New Match / Join Match / Observe**), the board,
+the player cards, and the chat panel. Keep the tab open; every mode below is driven from it. (It's
+served with `Cache-Control: no-store`, so a reload always shows the latest. Nothing to build — it's
+plain HTML/CSS/JS. If you used a different `--port`, use that port instead of `8000`.)
+
 Then pick a mode:
 
 ### 1. Human vs agent
