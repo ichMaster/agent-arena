@@ -1,6 +1,25 @@
 AgentArena — Release Notes
 ==========================
 
+Version 05.03.00 (2026-07-21)
+-----------------------------
+Version v05.03 — Polish & docs. THE v05 RELEASE GATE: the MVP is complete. A
+newcomer can set up and run all three modes from the README. Shipped via
+/ship-phase. Git tag: opus-v05.03.00.
+
+- A real README (ARENA-OPUS-037): what AgentArena is, architecture at a glance +
+  spec links, setup (venv, pip install -e ".[dev]", ANTHROPIC_API_KEY in .env), the
+  three run modes with the actual commands (human-vs-agent, agent-vs-agent via
+  scripts/run_arena.sh + Observe, observe), the WebSocket protocol summary, testing
+  (pytest + mypy, LLM mocked, no paid calls), and data/reset (./arena.db). Replaces
+  the 3-line stub that named the wrong vendors.
+- A tracked .env.example (ANTHROPIC_API_KEY placeholder; .env stays gitignored).
+- A doc-smoke test (tests/test_readme.py) that keeps the README honest: real
+  commands/paths, referenced files exist, all three modes documented.
+- UI polish: the "arena" aesthetic already shipped in v03 (styles.css mirrors the
+  prototype) -- the DoD's clean UI was already met.
+- Quality: 231 tests passing (deterministic); mypy --strict clean; zero paid calls.
+
 Version 05.02.00 (2026-07-21)
 -----------------------------
 Version v05.02 — End-to-end integration suite. Shipped via /ship-phase.
