@@ -12,6 +12,8 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from games.interface import GameInterface
+from games.tictactoe import TicTacToe
 from server.models import ChatMessage, Match, Move, Participant
 
 _SYMBOLS: tuple[str, ...] = ("X", "O")
@@ -92,6 +94,25 @@ class Repository:
             )
         )
         return {s for s in result.scalars().all() if s is not None}
+
+    async def reconstruct_game(self, match_id: str) -> GameInterface:
+        """Rebuild live state by replaying the ordered move log through a fresh TicTacToe (§5.1).
+
+        The server holds no board state of its own — the move log is the source of truth, so board /
+        whose-turn / result all survive a restart and a reconnect.
+        """
+        game = TicTacToe()
+        for move_row in await self._moves_in_order(match_id):
+            game.apply_move(move_row.player_symbol, move_row.move)
+        return game
+
+    async def current_turn(self, match_id: str) -> str | None:
+        """Whose turn, derived from move-count parity — None once the game is over (§5.1)."""
+        game = await self.reconstruct_game(match_id)
+        if game.is_game_over() is not None:
+            return None
+        move_count = len(await self._moves_in_order(match_id))
+        return _SYMBOLS[move_count % len(_SYMBOLS)]  # X on an even count, O on odd
 
     async def _moves_in_order(self, match_id: str) -> list[Move]:
         result = await self._session.execute(
