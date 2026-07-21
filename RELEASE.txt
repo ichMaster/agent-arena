@@ -1,6 +1,25 @@
 AgentArena — Release Notes
 ==========================
 
+Version 05.02.00 (2026-07-21)
+-----------------------------
+Version v05.02 — End-to-end integration suite. Shipped via /ship-phase.
+Git tag: opus-v05.02.00.
+
+- No-paid-call guard (ARENA-OPUS-035): an autouse conftest fixture patches
+  agent.llm.AsyncAnthropic to a dummy for EVERY test, so no test path can open a
+  real Anthropic network client -- even one that forgets to mock the SDK. The
+  whole suite is paid-call-safe by construction.
+- Agent-vs-agent end-to-end (ARENA-OPUS-036): two real AgentSessions (Blaze X +
+  Bastion O, both LLMs mocked with a scripted game) play to game_over over the
+  real server via two TestClient WebSockets; a lock-step broadcast driver, with
+  LLM call counts proving no action on the terminal update. Deterministic 10/10.
+- The DoD's other paths were already covered (full-game WS, human-vs-agent,
+  observer, disconnect/reconnect, DB against a throwaway SQLite) -- the execution
+  report maps each clause to its test.
+- Quality: 212 tests passing (deterministic); mypy --strict clean; zero paid calls
+  (now mechanically enforced).
+
 Version 05.01.00 (2026-07-21)
 -----------------------------
 Phase v05 (Hardening & Polish) begins. Version v05.01 — resilience & reconnection,
