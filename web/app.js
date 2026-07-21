@@ -90,6 +90,54 @@ function sendAction(action, payload) {
   ws.send(JSON.stringify({ action: action, payload: payload }));
 }
 
+// --- Rendering (web_ui_spec §4.2-4.3, §6). Every pixel derives from a server event. ---
+
+// "Your turn" is derived, not pushed (§6.2): a cell is playable only when it's empty, the game is
+// active, it's my turn, and the move is in valid_moves. current_turn is null on the ending move.
+function renderBoard(board, currentTurn, validMoves) {
+  const legal = new Set(validMoves || []);
+  const myTurn = isGameActive && mySymbol !== null && currentTurn === mySymbol;
+  for (let i = 0; i < 9; i++) {
+    const cell = byId('cell-' + i);
+    if (!cell) continue;
+    const mark = board && board[i] ? board[i] : '';
+    cell.textContent = mark;
+    cell.classList.remove('x', 'o', 'empty', 'playable', 'win');
+    if (mark === 'X') cell.classList.add('x');
+    else if (mark === 'O') cell.classList.add('o');
+    else cell.classList.add('empty');
+    const playable = mark === '' && myTurn && legal.has(i);
+    cell.classList.toggle('playable', playable);
+    cell.disabled = !playable;   // the real <button> disabled attribute (a11y §9), not just a class
+  }
+}
+
+// Two cards; the one whose symbol equals current_turn is .active (neither when current_turn is null).
+// Null-safe for the Observer (mySymbol === null) — never calls null.toLowerCase() (§5).
+function renderPlayers(currentTurn) {
+  ['X', 'O'].forEach((sym) => {
+    const card = byId('card-' + sym.toLowerCase());
+    const name = byId('name-' + sym.toLowerCase());
+    const role = byId('role-' + sym.toLowerCase());
+    const isMe = mySymbol !== null && sym === mySymbol;
+    if (name) name.textContent = isMe ? 'You' : ('Player ' + sym);
+    if (role) role.textContent = isMe ? 'Human · Player' : 'Haiku · Agent';
+    if (card) card.classList.toggle('active', currentTurn === sym);
+  });
+}
+
+function renderTurnBanner(currentTurn) {
+  const banner = byId('turn-banner');
+  if (!banner) return;
+  if (!isGameActive) { banner.textContent = 'Game over'; return; }
+  if (mySymbol === null) {
+    banner.textContent = currentTurn ? ('Observing — ' + currentTurn + ' to move') : 'Observing';
+    return;
+  }
+  if (currentTurn === mySymbol) banner.innerHTML = "It's <b>your</b> turn — pick a square";
+  else banner.textContent = 'Waiting for the opponent…';
+}
+
 // --- The single dispatcher (web_ui_spec §6.1). One case per server event. ---
 // Board rendering (state_update) lands in v03.02; chat (chat_message) in v03.03.
 function routeEvent(message) {
@@ -99,8 +147,14 @@ function routeEvent(message) {
     case 'joined':
       mySymbol = payload.symbol;               // server-decided role: "X"/"O"/null (Observer)
       setConnectionStatus('connected');
+      renderPlayers(payload.current_turn);
+      renderBoard(payload.board, payload.current_turn, payload.valid_moves);
+      renderTurnBanner(payload.current_turn);
       break;
     case 'state_update':
+      renderBoard(payload.board, payload.current_turn, payload.valid_moves);
+      renderPlayers(payload.current_turn);
+      renderTurnBanner(payload.current_turn);
       break;
     case 'chat_message':
       break;
