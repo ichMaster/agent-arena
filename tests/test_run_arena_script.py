@@ -35,6 +35,15 @@ def test_waits_for_agent_one_before_agent_two() -> None:
     assert text.index("joined as") < text.index("launching agent 2")
 
 
+def test_launches_agents_unbuffered() -> None:
+    """The agent must launch with `-u` (or line-buffered stdout) so its `joined as` line reaches the
+    log the script greps -- a block-buffered agent would hang the wait loop (the run_arena bug)."""
+    text = SCRIPT.read_text(encoding="utf-8")
+    for line in text.splitlines():
+        if "agent/agent.py" in line and "PYTHON" in line:
+            assert "-u" in line, f"agent launched without -u (block-buffering risk): {line.strip()}"
+
+
 def test_tells_human_to_observe_not_join() -> None:
     text = SCRIPT.read_text(encoding="utf-8")
     assert "Observe" in text

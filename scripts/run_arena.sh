@@ -45,7 +45,7 @@ echo "[run_arena] watch it: open $SERVER_URL/ui -> Observe -> paste the match id
 echo "[run_arena] use Observe, NOT Join -- Join would claim a player seat"
 
 echo "[run_arena] launching agent 1 (X, $PROFILE_X) ..."
-"$PYTHON" agent/agent.py --match-id "$MATCH_ID" --profile "$PROFILE_X" \
+"$PYTHON" -u agent/agent.py --match-id "$MATCH_ID" --profile "$PROFILE_X" \
   --server-url "$SERVER_URL" >"$LOG_X" 2>&1 &
 PID_X=$!
 
@@ -70,7 +70,7 @@ fi
 echo "[run_arena] agent 1 joined."
 
 echo "[run_arena] launching agent 2 (O, $PROFILE_O) ..."
-"$PYTHON" agent/agent.py --match-id "$MATCH_ID" --profile "$PROFILE_O" \
+"$PYTHON" -u agent/agent.py --match-id "$MATCH_ID" --profile "$PROFILE_O" \
   --server-url "$SERVER_URL" >"$LOG_O" 2>&1 &
 PID_O=$!
 

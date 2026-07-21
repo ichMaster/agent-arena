@@ -14,6 +14,7 @@ if not __package__:  # direct-run shim: `python agent/agent.py ...` from the rep
 
 import argparse  # noqa: E402
 import asyncio  # noqa: E402
+import io  # noqa: E402
 import json  # noqa: E402
 import random  # noqa: E402
 from typing import Any, Final  # noqa: E402
@@ -170,7 +171,18 @@ async def run_agent(
     print("[agent] connection closed; exiting")
 
 
+def _enable_line_buffered_stdout() -> None:
+    """Honor the module's line-buffered-stdout contract (§3.2). When stdout is redirected to a file
+    or pipe (e.g. by scripts/run_arena.sh), Python **block-buffers** it, so lines like
+    ``[agent] joined as X`` sit unflushed and the orchestrator can't detect the join. Line-buffering
+    flushes each line immediately. Guarded so it's a no-op when stdout isn't a TextIOWrapper (e.g.
+    under pytest's capture)."""
+    if isinstance(sys.stdout, io.TextIOWrapper):
+        sys.stdout.reconfigure(line_buffering=True)
+
+
 def main(argv: list[str] | None = None) -> None:
+    _enable_line_buffered_stdout()
     args = parse_args(argv)
     api_key = load_environment()
     profile = AgentProfile.load_from_yaml(args.profile)
