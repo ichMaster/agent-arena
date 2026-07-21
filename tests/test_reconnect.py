@@ -70,6 +70,17 @@ def test_malformed_json_keeps_connection(client: TestClient) -> None:
         assert ws.receive_json()["event"] == "chat_message"
 
 
+def test_binary_frame_keeps_connection(client: TestClient) -> None:
+    match_id = _create_match(client)
+    token = _join(client, match_id, "Alice")
+    with client.websocket_connect(f"/ws/match/{match_id}?token={token}") as ws:
+        ws.receive_json()
+        ws.send_bytes(b"\x00\x01\x02")  # a raw binary frame, not text
+        assert ws.receive_json() == {"event": "error", "payload": {"detail": "malformed message"}}
+        ws.send_json({"action": "chat", "payload": {"message": "still here"}})
+        assert ws.receive_json()["event"] == "chat_message"
+
+
 def test_non_object_json_keeps_connection(client: TestClient) -> None:
     match_id = _create_match(client)
     token = _join(client, match_id, "Alice")
