@@ -13,12 +13,19 @@ if not __package__:  # direct-run shim: `python agent/agent.py ...` from the rep
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import argparse  # noqa: E402
+import random  # noqa: E402
+from typing import Final  # noqa: E402
 
 import httpx  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
 
-from agent.llm import load_api_key  # noqa: E402
+from agent.llm import LLMClient, load_api_key  # noqa: E402
+from agent.memory import MemoryWindow  # noqa: E402
 from agent.profile import AgentProfile  # noqa: E402
+from agent.prompt import build_prompt  # noqa: E402
+from agent.schemas import AgentResponse  # noqa: E402
+
+MAX_MOVE_ATTEMPTS: Final = 3
 
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
@@ -54,3 +61,32 @@ async def join_match(
     finally:
         if owns_client:
             await http.aclose()
+
+
+async def choose_move(
+    llm: LLMClient,
+    memory: MemoryWindow,
+    board: list[str],
+    valid_moves: list[int],
+    persona: str,
+) -> tuple[int, str]:
+    """Decide → validate → retry (≤ ``MAX_MOVE_ATTEMPTS``) → random-legal fallback (§7.1).
+
+    An illegal, unparseable, or erroring model reply counts as a failed attempt; on exhaustion the
+    agent plays a random *legal* move rather than stalling the match.
+    """
+    prompt = build_prompt(memory, board, valid_moves, persona)
+    for attempt in range(1, MAX_MOVE_ATTEMPTS + 1):
+        try:
+            reply = await llm.generate_structured_response(prompt, AgentResponse)
+        except Exception as exc:  # a model/validation failure is a failed attempt, never a stall
+            print(f"[agent] model error on attempt {attempt}: {exc}")
+            continue
+        if reply.move in valid_moves:
+            print(f"[agent] move {reply.move} — {reply.comment}")
+            return reply.move, reply.comment
+        print(f"[agent] illegal move {reply.move} on attempt {attempt}; retrying")
+
+    move = random.choice(valid_moves)
+    print(f"[agent] falling back to a random legal move: {move}")
+    return move, "Let me reconsider…"
