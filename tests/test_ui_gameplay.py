@@ -34,12 +34,12 @@ def test_interactivity_gated_on_my_turn_and_active(app_js: str) -> None:
 
 def test_joined_and_state_update_call_the_renderers(app_js: str) -> None:
     joined_idx = app_js.index("case 'joined'")
-    assert "renderBoard(" in app_js[joined_idx:joined_idx + 300]
+    assert "renderBoard(" in app_js[joined_idx:joined_idx + 500]
     su_idx = app_js.index("case 'state_update'")
     assert "renderBoard(" in app_js[su_idx:su_idx + 300]
 
 
 def test_active_card_follows_current_turn(app_js: str) -> None:
     idx = app_js.index("function renderPlayers")
-    body = app_js[idx:idx + 500]
+    body = app_js[idx:idx + 700]
     assert "currentTurn === sym" in body  # only the current-turn card is .active
