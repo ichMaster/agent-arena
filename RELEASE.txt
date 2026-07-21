@@ -1,6 +1,26 @@
 AgentArena — Release Notes
 ==========================
 
+Version 03.03.00 (2026-07-21)
+------------------------------
+Version v03.03 — Chat & the Observer role. **v03 release gate**: the Web UI
+(Player & Observer) is now feature-complete against its phase DoD.
+Git tag: opus-sonnet-v03.03.00 (namespaced — this branch's independent build).
+
+- renderChat/renderSystem (web/app.js): chat bubbles labelled by seat symbol
+  (self left/blue, other right/pink), textContent-escaped, auto-scrolling;
+  system lines for match-start/game-over/errors (closes v03.01 review #2).
+  Chat form posts `{action:"chat"}` non-optimistically. (ARENA-OPUS-030)
+- renderPlayers's Observer branch labels both cards "Observer" when
+  mySymbol === null; board + chat were already read-only for an Observer.
+  End-to-end verified: an Observer join yields symbol:null and no seat.
+  (ARENA-OPUS-031)
+- Review fix: the server now refuses a seatless connection's `chat`
+  ("observers cannot chat"), matching submit_move's existing "no seat"
+  guard -- closes a gap where client-side suppression was the only guard
+  (code review #1, MEDIUM). Chat-message length bound deferred to v05.01.
+- Quality: 203 tests passing; mypy --strict clean; zero paid calls.
+
 Version 03.02.00 (2026-07-21)
 ------------------------------
 Version v03.02 — Board & gameplay (Player role). A human can now play a full
