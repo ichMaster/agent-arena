@@ -1,6 +1,20 @@
 AgentArena — Release Notes
 ==========================
 
+Version 04.01.00 (2026-07-21)
+------------------------------
+Version v04.01 — Contrasting personas (the theater). First version of phase
+v04 (Agent-vs-Agent Orchestration).
+Git tag: opus-opus-v04.01.00 (namespaced — this branch's independent build).
+
+- profiles/aggressive.yml (Ironclaw, refined): sharpened toward
+  forcing/double-threat play, temperature 0.85 -> 0.9. (ARENA-OPUS-OPUS-032)
+- profiles/cautious.yml (new — Bastion): wary block-first defender; calm,
+  dry tone; temperature 0.4, memory 6 -- contrasts Ironclaw on every axis.
+  Both drive the real create_llm_client. (ARENA-OPUS-OPUS-032)
+- Review: no findings.
+- Quality: 170 tests passing; mypy --strict clean; zero paid calls.
+
 Version 03.03.00 (2026-07-21)
 ------------------------------
 Version v03.03 — Chat & the Observer role. **v03 release gate**: the Web UI
