@@ -1,6 +1,26 @@
 AgentArena — Release Notes
 ==========================
 
+Version 05.03.00 (2026-07-21)
+------------------------------
+Version v05.03 — Polish & docs. **v05 release gate — the MVP is complete.**
+Git tag: opus-sonnet-v05.03.00 (namespaced — this branch's independent build).
+
+- README.md: replaced the 3-line stub (which named the wrong vendors) with
+  a real README covering what AgentArena is, the architecture at a
+  glance, setup, all three run modes with the real shipped commands, the
+  WS protocol summary, testing, and data/reset. (ARENA-OPUS-037)
+- tests/test_readme.py (doc-smoke, no live command execution): every
+  referenced command/path exists and is accurate; all three modes are
+  documented; no stale vendor names. (ARENA-OPUS-037)
+- Review fix: uvicorn was not declared in pyproject.toml -- the README's
+  first command would have failed on a genuinely clean install. Now
+  declared, with a regression test (code review #1, HIGH).
+- UI aesthetic: confirmed already shipped in v03; no UI code touched.
+- Quality: 226 tests passing; mypy --strict clean; zero paid calls.
+
+This completes phases v01-v05 -- all 15 roadmap versions shipped.
+
 Version 05.02.00 (2026-07-21)
 ------------------------------
 Version v05.02 — End-to-end integration suite.
