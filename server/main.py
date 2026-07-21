@@ -155,7 +155,13 @@ async def _ws_connection(
         board, turn, valid_moves = await _current_state(session_maker, match_id)
         await manager.send_to(websocket, joined_event(symbol, board, turn, valid_moves))
         while True:
-            text = await websocket.receive_text()
+            try:
+                text = await websocket.receive_text()
+            except KeyError:
+                # A non-text (binary) WS frame -- Starlette's receive_text() indexes message["text"],
+                # which is absent on a binary frame. Same "malformed, don't kill the socket" contract.
+                await manager.send_to(websocket, error_event("malformed message"))
+                continue
             try:
                 raw = json.loads(text)
             except json.JSONDecodeError:

@@ -83,6 +83,23 @@ def test_malformed_json_keeps_connection(client: TestClient) -> None:
         assert second["event"] == "chat_message"
 
 
+def test_binary_frame_keeps_connection(client: TestClient) -> None:
+    match_id = _create_match(client)
+    token = _join(client, match_id, "Alice")
+
+    with client.websocket_connect(f"/ws/match/{match_id}?token={token}") as ws:
+        ws.receive_json()  # joined
+
+        ws.send_bytes(b"\x00\x01\x02")  # a raw binary frame, not text
+        response = ws.receive_json()
+        assert response == {"event": "error", "payload": {"detail": "malformed message"}}
+
+        # The connection must still be usable afterward -- not dropped by the bad frame type.
+        ws.send_json({"action": "chat", "payload": {"message": "still here"}})
+        second = ws.receive_json()
+        assert second["event"] == "chat_message"
+
+
 def test_non_object_json_keeps_connection(client: TestClient) -> None:
     match_id = _create_match(client)
     token = _join(client, match_id, "Alice")
