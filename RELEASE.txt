@@ -1,0 +1,24 @@
+AgentArena — Release Notes
+==========================
+
+Version 01.01.00 (2026-07-21)
+------------------------------
+Phase v01.01 — Project skeleton & the game engine. The first stable seam
+(GameInterface) plus its first concrete implementation, verified entirely in
+isolation.
+Git tag: opus-sonnet-v01.01.00 (namespaced — this branch's independent build).
+
+- Project skeleton: pyproject.toml (pytest + strict mypy config, plus
+  [build-system]/[tool.setuptools] pinning the three installable packages) and
+  the games/server/agent package layout, with a smoke test proving the
+  toolchain runs and the packages import. (ARENA-OPUS-SONNET-001)
+- GameInterface seam: the abstract game plug-in — get_state, get_valid_moves,
+  apply_move, is_game_over — with a contract test pinning the §4.1 method
+  signatures and abstractness. (ARENA-OPUS-SONNET-002)
+- TicTacToe engine behind the seam: 9-cell board, 8 winning lines, "draw" on a
+  full board; apply_move is the sole legality authority and never raises on
+  bad input (out-of-range / occupied / wrong-type). Ships an exhaustive unit
+  suite (a win on every line, draw detection, illegal rejection per category,
+  valid-moves shrink invariant). (ARENA-OPUS-SONNET-003)
+- Quality: 36 tests passing; mypy --strict clean on source and tests; no paid
+  model calls anywhere (pure logic — the LLMClient seam arrives in v02.01).
