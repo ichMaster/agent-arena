@@ -24,7 +24,13 @@ from server.database import init_models
 from server.match import assign_symbol, release_seat
 from server.repository import Repository
 from server.schemas import JoinRequest, JoinResponse, MatchCreatedResponse
-from server.websockets import ConnectionManager, error_event, joined_event, parse_action
+from server.websockets import (
+    ConnectionManager,
+    chat_message_event,
+    error_event,
+    joined_event,
+    parse_action,
+)
 
 APP_VERSION = "01.04.00"  # bumped by the release process on each phase release
 
@@ -45,6 +51,30 @@ async def _current_state(
         game = await repo.reconstruct_game(match_id)
         turn = await repo.current_turn(match_id)
     return list(game.get_state()["board"]), turn, list(game.get_valid_moves())
+
+
+async def _handle_action(
+    websocket: WebSocket,
+    manager: ConnectionManager,
+    session_maker: async_sessionmaker[AsyncSession],
+    match_id: str,
+    token: str,
+    symbol: str | None,
+    action: str | None,
+    payload: dict[str, Any],
+) -> None:
+    """Dispatch a client->server action (§5.4/§6.2)."""
+    if action == "chat":
+        # Sender label is whatever the join recorded for this connection (its assigned symbol, or
+        # "observer" if seatless); chat is non-authoritative flavor and never affects game state.
+        sender = symbol if symbol is not None else "observer"
+        message = str(payload.get("message", ""))
+        async with session_maker() as session:
+            await Repository(session).log_chat(match_id, sender, message)
+        await manager.broadcast(match_id, chat_message_event(sender, message))
+        return
+
+    await manager.send_to(websocket, error_event(f"unknown action: {action}"))
 
 
 async def _ws_connection(
@@ -71,10 +101,10 @@ async def _ws_connection(
         await manager.send_to(websocket, joined_event(symbol, board, turn, valid_moves))
         while True:
             raw = await websocket.receive_json()
-            action, _payload = parse_action(raw)
-            # The chat/submit_move handlers land in later issues (014/015); for now every action
-            # is rejected so the receive loop is exercisable end to end today.
-            await manager.send_to(websocket, error_event(f"unknown action: {action}"))
+            action, payload = parse_action(raw)
+            await _handle_action(
+                websocket, manager, session_maker, match_id, token, symbol, action, payload
+            )
     except WebSocketDisconnect:
         pass
     finally:
