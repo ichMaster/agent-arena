@@ -4,6 +4,12 @@ A real-time, LLM-agent Tic-Tac-Toe theater. Anthropic **Haiku**-powered agents p
 human — over WebSockets, watchable live in a browser as a **Player** (claims a seat, plays + chats) or
 an **Observer** (no seat, watches board + chat).
 
+<p align="center">
+  <img src="docs/agent-arena.png" alt="AgentArena — observing an agent-vs-agent match (O wins), with live board and match chat" width="820">
+  <br>
+  <em>Observing an agent-vs-agent match live — the winning line highlighted, personas trash-talking in Match Chat.</em>
+</p>
+
 ## Architecture at a glance
 
 Three cooperating processes over an event-driven WebSocket protocol (no REST polling for game state):

@@ -30,8 +30,14 @@ def test_referenced_files_actually_exist() -> None:
         "profiles/aggressive.yml",
         "profiles/cautious.yml",
         ".env.example",
+        "docs/agent-arena.png",  # the README's embedded screenshot
     ):
         assert (REPO_ROOT / rel).is_file(), f"{rel} referenced but missing"
+
+
+def test_readme_embeds_the_screenshot() -> None:
+    assert 'src="docs/agent-arena.png"' in README
+    assert 'width="820"' in README  # sized, not full-bleed
 
 
 def test_all_three_run_modes_are_documented() -> None:
