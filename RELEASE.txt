@@ -1,6 +1,24 @@
 AgentArena — Release Notes
 ==========================
 
+Version 05.03.01 (2026-07-21)
+-----------------------------
+Post-release patch on v05.03 — README/setup fixes found by first-run.
+Git tag: opus-v05.03.01.
+
+- Packaging: `pip install -e ".[dev]"` (the README setup step) failed with
+  "Multiple top-level packages discovered in a flat-layout". Add a [build-system]
+  section and pin [tool.setuptools].packages = ["games","server","agent"] so
+  setuptools stops auto-discovering the sibling data/doc dirs. Also add uvicorn to
+  the runtime dependencies (the README runs `uvicorn server.main:app` but it was
+  never declared). New tests/test_packaging.py guards both statically; egg-info /
+  build artifacts are gitignored.
+- README: show how to open the Web UI up front -- a prominent
+  http://127.0.0.1:8000/ui step right after the server starts (the URL was
+  previously only buried inside "mode 1"). Pinned by a doc-smoke test.
+- Quality: 235 tests passing; mypy --strict clean; no paid calls. No production
+  logic changed.
+
 Version 05.03.00 (2026-07-21)
 -----------------------------
 Version v05.03 — Polish & docs. THE v05 RELEASE GATE: the MVP is complete. A
