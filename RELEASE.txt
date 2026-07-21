@@ -1,6 +1,26 @@
 AgentArena — Release Notes
 ==========================
 
+Version 02.01.00 (2026-07-21)
+------------------------------
+Phase v02 (Agent Client — Haiku) begins. Version v02.01 — the LLMClient seam &
+the Anthropic Haiku client. The model is introduced behind a vendor-agnostic
+seam and is always mocked in tests: zero paid calls.
+Git tag: opus-sonnet-v02.01.00 (namespaced — this branch's independent build).
+
+- LLMClient seam (agent/llm.py): the abstract, vendor-agnostic client — one async
+  generate_structured_response(prompt, schema) returning a validated instance —
+  plus AgentResponse{move, comment} (agent/schemas.py). Contract test pins the
+  seam; agent/ imports nothing from server/. (ARENA-OPUS-SONNET-016)
+- AnthropicHaikuClient: the only vendor implementation, via the async Anthropic
+  SDK; structured output forced with messages.parse(output_format=schema) and
+  returned validated (raises if absent). Model id is a single constant,
+  claude-haiku-4-5. (ARENA-OPUS-SONNET-017)
+- create_llm_client(model_type, api_key, temperature) config-driven dispatch +
+  fail-fast ANTHROPIC_API_KEY handling; the key lives only in the agent process
+  and is never logged. (ARENA-OPUS-SONNET-018)
+- Quality: 135 tests passing; mypy --strict clean; no paid model call anywhere.
+
 Version 01.04.00 (2026-07-21)
 ------------------------------
 Phase v01.04 — WebSocket protocol & move authority. This completes v01: two raw
