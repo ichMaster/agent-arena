@@ -8,12 +8,15 @@ phases. `create_app` builds the app bound to a given engine/session maker so tes
 
 import asyncio
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket, WebSocketDisconnect
+from fastapi.staticfiles import StaticFiles
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
+from starlette.responses import Response
 
 from server.auth import issue_token, validate_token
 from server.database import async_session_maker as default_session_maker
@@ -32,7 +35,10 @@ from server.websockets import (
     state_update_event,
 )
 
-APP_VERSION = "02.03.00"  # bumped by the release process on each phase release
+APP_VERSION = "03.01.00"  # bumped by the release process on each phase release
+
+# The Web UI lives in web/ at the repo root; resolve from this file so it's CWD-independent (§8).
+WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 
 
 async def get_repository(request: Request) -> AsyncIterator[Repository]:
@@ -177,6 +183,18 @@ def create_app(
     manager = ConnectionManager()
     application.state.manager = manager
 
+    @application.middleware("http")
+    async def no_store_for_ui(
+        request: Request, call_next: Callable[[Request], Awaitable[Response]]
+    ) -> Response:
+        response = await call_next(request)
+        # Match the /ui mount EXACTLY -- "/ui" or "/ui/..." -- never a loose startswith("/ui") that
+        # would also stamp an unrelated "/uixyz". Keeps dev edits from being served stale (§3).
+        path = request.url.path
+        if path == "/ui" or path.startswith("/ui/"):
+            response.headers["Cache-Control"] = "no-store"
+        return response
+
     @application.get("/api/v1/health")
     async def health() -> dict[str, str]:
         return {"status": "ok"}
@@ -207,6 +225,10 @@ def create_app(
             token, body.match_id, body.player_name, is_spectator=body.spectator
         )
         return JoinResponse(token=token)
+
+    # Static Web UI at /ui (html=True so /ui/ serves index.html). Mounted last so it can't shadow the
+    # REST/WS routes. Resolved from WEB_DIR (CWD-independent).
+    application.mount("/ui", StaticFiles(directory=str(WEB_DIR), html=True), name="ui")
 
     return application
 
