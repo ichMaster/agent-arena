@@ -85,6 +85,67 @@ function resetPlayState() {
   }
   const banner = byId('turn-banner');
   if (banner) banner.textContent = 'Connecting…';
+  const messages = byId('messages');
+  if (messages) messages.textContent = '';
+}
+
+// --- Chat (web_ui_spec §4.4, §6.1) ---
+
+// Self (my own seat SYMBOL, not name — the server broadcasts `sender` as "X"/"O", §6.2) renders
+// left/blue; everyone else (opponent, or an observer's chat) renders right/pink.
+function renderChat(sender, message) {
+  const list = byId('messages');
+  if (!list) return;
+  const isMe = mySymbol !== null && sender === mySymbol;
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + (isMe ? 'agent-x' : 'agent-o');
+  const who = document.createElement('div');
+  who.className = 'who';
+  who.textContent = isMe ? 'you' : sender;   // textContent only -- chat is untrusted content
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = message;
+  wrap.appendChild(who);
+  wrap.appendChild(bubble);
+  list.appendChild(wrap);
+  list.scrollTop = list.scrollHeight;
+}
+
+function renderSystem(text) {
+  const list = byId('messages');
+  if (!list) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'msg system';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble';
+  bubble.textContent = text;
+  wrap.appendChild(bubble);
+  list.appendChild(wrap);
+  list.scrollTop = list.scrollHeight;
+}
+
+// Submitting chat never renders optimistically -- the server echoes it back as chat_message (§6).
+function handleChatSubmit(ev) {
+  ev.preventDefault();
+  const input = byId('chat-input');
+  if (!input) return;
+  const message = input.value.trim();
+  if (!message) return;
+  sendAction('chat', { message: message });
+  input.value = '';
+}
+
+// Chat is enabled only for a Player (mySymbol !== null); an Observer's input stays disabled (§5).
+function setChatEnabled(enabled) {
+  const input = byId('chat-input');
+  const send = byId('chat-send');
+  if (input) input.disabled = !enabled;
+  if (send) send.disabled = !enabled;
+}
+
+function wireChat() {
+  const form = byId('chat-form');
+  if (form) form.addEventListener('submit', handleChatSubmit);
 }
 
 function openSocket(matchId, token) {
@@ -203,9 +264,11 @@ function routeEvent(message) {
     case 'joined':
       mySymbol = payload.symbol;               // server-decided role: "X"/"O"/null (Observer)
       setConnectionStatus('connected');
+      setChatEnabled(mySymbol !== null);       // Observer chat input stays disabled (MVP, §5)
       renderPlayers(payload.current_turn);
       renderBoard(payload.board, payload.current_turn, payload.valid_moves);
       renderTurnBanner(payload.current_turn);
+      renderSystem('Match started');
       break;
     case 'state_update':
       renderBoard(payload.board, payload.current_turn, payload.valid_moves);
@@ -213,11 +276,14 @@ function routeEvent(message) {
       renderTurnBanner(payload.current_turn);
       break;
     case 'chat_message':
+      renderChat(payload.sender, payload.message);
       break;
     case 'game_over':
       handleGameOver(payload.result);        // freeze + winning line + status + banner
+      renderSystem(payload.result === 'draw' ? "Game over — it's a draw" : ('Game over — ' + payload.result + ' wins'));
       break;
     case 'error':
+      renderSystem('⚠ ' + payload.detail);   // surface errors as a system line (closes v03.01 review #2)
       console.warn('server error:', payload.detail);
       break;
     default:
@@ -233,6 +299,7 @@ function wireUI() {
   if (join) join.addEventListener('click', () => joinMatch().catch((e) => console.error(e)));
   if (observe) observe.addEventListener('click', () => spectateMatch().catch((e) => console.error(e)));
   wireBoard();
+  wireChat();
 }
 
 if (typeof document !== 'undefined') {
@@ -246,5 +313,6 @@ if (typeof window !== 'undefined') {
     hostMatch, joinMatch, spectateMatch, joinAndConnect,
     routeEvent, sendAction, setConnectionStatus, setMatchIdDisplay,
     renderBoard, renderPlayers, resetPlayState, handleCellClick, handleGameOver,
+    renderChat, renderSystem, handleChatSubmit, setChatEnabled,
   };
 }
