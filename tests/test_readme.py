@@ -2,6 +2,7 @@
 command -- only reads the README text and confirms the files/commands it references actually exist.
 """
 
+import tomllib
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -44,6 +45,16 @@ def test_all_three_run_modes_are_documented() -> None:
 def test_no_stale_vendor_names() -> None:
     for stale in ("Gemini", "GPT-4", "GPT-3"):
         assert stale not in README, f"README still names the stale vendor {stale!r}"
+
+
+def test_uvicorn_is_a_declared_dependency() -> None:
+    """The README's first command is `uvicorn server.main:app` (code review #1) -- a clean install
+    must actually provide it; plain fastapi doesn't pull it in transitively."""
+    manifest = tomllib.loads((REPO_ROOT / "pyproject.toml").read_text(encoding="utf-8"))
+    dependencies = manifest["project"]["dependencies"]
+    assert any(dep.startswith("uvicorn") for dep in dependencies), (
+        "pyproject.toml must declare uvicorn -- the README's `uvicorn server.main:app` needs it"
+    )
 
 
 def test_env_example_is_tracked_not_gitignored() -> None:

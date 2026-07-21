@@ -13,6 +13,9 @@ dependencies = [
     "aiosqlite>=0.20",
     # Game Server: FastAPI app + lobby REST (and, later, the WebSocket hub).
     "fastapi>=0.110",
+    # Game Server: the ASGI server the README's `uvicorn server.main:app` actually needs -- plain
+    # fastapi does not pull this in transitively.
+    "uvicorn>=0.30",
     # Agent Client: the Anthropic SDK behind the LLMClient seam (Haiku). Always mocked in tests.
     "anthropic>=0.100",
     # Agent Client: persona profiles are YAML (AgentProfile.load_from_yaml).
