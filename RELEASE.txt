@@ -1,6 +1,24 @@
 AgentArena — Release Notes
 ==========================
 
+Version 04.02.00 (2026-07-21)
+-----------------------------
+Version v04.02 — Arena orchestration script. THE v04 RELEASE GATE: one command
+starts a watchable agent-vs-agent match. Shipped via /ship-phase.
+Git tag: opus-v04.02.00.
+
+- scripts/run_arena.sh: from the repo root, creates a match (POST /lobby/match,
+  match_id parsed with Python -- no jq), prints the full id + the Observe link with
+  an explicit "use Observe, NOT Join", launches agent 1 (X, aggressive) and WAITS
+  for its "joined as" line before launching agent 2 (O, cautious) so X/O is
+  deterministic (seats are already race-safe server-side), trap-cleans up both
+  agents on INT/TERM/EXIT, and tails both logs. Interpreter / SERVER_URL / profiles
+  are overridable. (ARENA-OPUS-033)
+- The test does static checks only (bash -n, references, wait-before-second
+  ordering, Observe-not-Join, cleanup) -- it never executes the script, so the
+  suite makes no paid calls.
+- Quality: 207 tests passing (deterministic); mypy --strict clean.
+
 Version 04.01.00 (2026-07-21)
 -----------------------------
 Phase v04 (Agent-vs-Agent Orchestration) begins. Version v04.01 — contrasting
