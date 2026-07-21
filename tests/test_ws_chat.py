@@ -44,6 +44,23 @@ def test_chat_is_broadcast_to_all(client: TestClient) -> None:
         assert msg == {"event": "chat_message", "payload": {"sender": "X", "message": "hello there"}}
 
 
+async def test_observer_chat_is_refused(client: TestClient, tmp_path: Path) -> None:
+    match_id = client.post("/api/v1/lobby/match").json()["match_id"]
+    body = {"match_id": match_id, "player_name": "Watcher", "spectator": True}
+    token = client.post("/api/v1/lobby/join", json=body).json()["token"]
+    with client.websocket_connect(f"/ws/match/{match_id}?token={token}") as ws:
+        ws.receive_json()  # joined (symbol null)
+        ws.send_json({"action": "chat", "payload": {"message": "let me in"}})
+        assert ws.receive_json() == {"event": "error", "payload": {"detail": "observers cannot chat"}}
+
+    engine = create_engine(f"sqlite+aiosqlite:///{tmp_path}/chat.db")
+    maker = create_session_maker(engine)
+    async with maker() as session:
+        rows = (await session.execute(select(ChatMessage))).scalars().all()
+    assert list(rows) == []  # nothing logged
+    await engine.dispose()
+
+
 async def test_chat_is_persisted(client: TestClient, tmp_path: Path) -> None:
     match_id = client.post("/api/v1/lobby/match").json()["match_id"]
     token = _join(client, match_id, "Alice")

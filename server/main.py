@@ -71,13 +71,15 @@ async def _handle_action(
 ) -> None:
     """Dispatch a client->server action (§5.4/§6.2). submit_move lands in ARENA-OPUS-OPUS-015."""
     if action == "chat":
-        # Sender label is whatever the join recorded for this connection (its assigned symbol, or
-        # "observer" if seatless); chat is non-authoritative flavor and never affects game state.
-        sender = symbol if symbol is not None else "observer"
+        # Only a seated Player may chat (game_spec §3.3, web_ui_spec §5 -- MVP: observers are
+        # read-only); refuse a seatless connection the same way submit_move refuses one below.
+        if symbol is None:
+            await manager.send_to(websocket, error_event("observers cannot chat"))
+            return
         message = str(payload.get("message", ""))
         async with session_maker() as session:
-            await Repository(session).log_chat(match_id, sender, message)
-        await manager.broadcast(match_id, chat_message_event(sender, message))
+            await Repository(session).log_chat(match_id, symbol, message)
+        await manager.broadcast(match_id, chat_message_event(symbol, message))
         return
 
     if action == "submit_move":
