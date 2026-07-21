@@ -1,6 +1,22 @@
 AgentArena — Release Notes
 ==========================
 
+Version 05.02.00 (2026-07-21)
+------------------------------
+Version v05.02 — End-to-end integration suite.
+Git tag: opus-sonnet-v05.02.00 (namespaced — this branch's independent build).
+
+- tests/conftest.py (new): an autouse fixture patches agent.llm.AsyncAnthropic
+  for every test in the suite -- paid-call-safe by construction, not just
+  convention. (ARENA-OPUS-035)
+- tests/test_agent_vs_agent.py: two real AgentSessions (Ironclaw vs
+  Bastion, both LLMs scripted-mocked) play a full game to game_over over
+  real WS connections against the real server -- the v04 headline
+  scenario, automated. Deterministic; exact LLM call counts per side.
+  (ARENA-OPUS-036)
+- Review: no findings.
+- Quality: 220 tests passing; mypy --strict clean; zero paid calls.
+
 Version 05.01.00 (2026-07-21)
 ------------------------------
 Version v05.01 — Resilience & reconnection. First version of phase v05

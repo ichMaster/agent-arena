@@ -40,7 +40,7 @@ from server.websockets import (
     state_update_event,
 )
 
-APP_VERSION = "05.01.00"  # bumped by the release process on each phase release
+APP_VERSION = "05.02.00"  # bumped by the release process on each phase release
 
 # The Web UI lives in web/ at the repo root; resolve from this file so it's CWD-independent (§8).
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
