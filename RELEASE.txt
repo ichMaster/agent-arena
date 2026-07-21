@@ -1,6 +1,24 @@
 AgentArena — Release Notes
 ==========================
 
+Version 01.03.00 (2026-07-21)
+------------------------------
+Version v01.03 — Match, seats & lobby REST.
+Git tag: opus-opus-v01.03.00 (namespaced — this branch's independent build).
+
+- FastAPI app (create_app factory, lifespan runs init_models),
+  GET /api/v1/health, per-request Repository dependency, lobby schemas.
+  (ARENA-OPUS-OPUS-008)
+- Auth tokens: issue_token (the opaque participant PK), IssuedToken,
+  validate_token (None for unknown/cross-match) -- identity by token,
+  never name. (ARENA-OPUS-OPUS-009)
+- Lobby REST: POST /lobby/match (uuid) + POST /lobby/join (404 on unknown,
+  writes is_spectator before any seat). (ARENA-OPUS-OPUS-010)
+- match.py seat helpers over the Repository + the end-to-end identity
+  proof: two "Human" joins get distinct X/O seats. (ARENA-OPUS-OPUS-011)
+- Review: no findings.
+- Quality: 64 tests passing; mypy --strict clean; zero paid calls.
+
 Version 01.02.00 (2026-07-21)
 ------------------------------
 Version v01.02 — Persistence layer (SQLite).
