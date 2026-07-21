@@ -13,13 +13,16 @@ if not __package__:  # direct-run shim: `python agent/agent.py ...` from the rep
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 import argparse  # noqa: E402
+import asyncio  # noqa: E402
+import json  # noqa: E402
 import random  # noqa: E402
-from typing import Final  # noqa: E402
+from typing import Any, Final  # noqa: E402
 
 import httpx  # noqa: E402
+import websockets  # noqa: E402
 from dotenv import load_dotenv  # noqa: E402
 
-from agent.llm import LLMClient, load_api_key  # noqa: E402
+from agent.llm import LLMClient, create_llm_client, load_api_key  # noqa: E402
 from agent.memory import MemoryWindow  # noqa: E402
 from agent.profile import AgentProfile  # noqa: E402
 from agent.prompt import build_prompt  # noqa: E402
@@ -90,3 +93,92 @@ async def choose_move(
     move = random.choice(valid_moves)
     print(f"[agent] falling back to a random legal move: {move}")
     return move, "Let me reconsider…"
+
+
+class AgentSession:
+    """One agent over one WebSocket — the transport-free event core (§7.1).
+
+    Acts only when ``current_turn == my symbol`` (never on the terminal ``state_update`` whose
+    ``current_turn`` is ``null``); records opponent moves + others' chat into memory; answers each of
+    its own turns with ``[chat, submit_move]``.
+    """
+
+    def __init__(self, profile: AgentProfile, llm: LLMClient, memory: MemoryWindow) -> None:
+        self.profile = profile
+        self._llm = llm
+        self._memory = memory
+        self.symbol: str | None = None
+        self.finished = False
+
+    async def on_event(self, event: dict[str, Any]) -> list[dict[str, Any]]:
+        name = event.get("event")
+        raw_payload = event.get("payload")
+        payload: dict[str, Any] = raw_payload if isinstance(raw_payload, dict) else {}
+
+        if name == "joined":
+            symbol = payload.get("symbol")
+            self.symbol = symbol if isinstance(symbol, str) else None
+            print(f"[agent] joined as {self.symbol}")
+            return await self._maybe_move(payload)
+        if name == "state_update":
+            last = payload.get("last_move")
+            if isinstance(last, dict) and last.get("player") != self.symbol:
+                self._memory.record_move(str(last.get("player")), last.get("move"))
+            return await self._maybe_move(payload)
+        if name == "chat_message":
+            if payload.get("sender") != self.symbol:
+                self._memory.record_chat(str(payload.get("sender")), str(payload.get("message", "")))
+            return []
+        if name == "game_over":
+            self.finished = True
+            print(f"[agent] game over: {payload.get('result')}")
+            return []
+        if name == "error":
+            print(f"[agent] server error: {payload.get('detail')}")
+            return []
+        return []
+
+    async def _maybe_move(self, payload: dict[str, Any]) -> list[dict[str, Any]]:
+        if self.symbol is None or payload.get("current_turn") != self.symbol:
+            return []  # not my turn — including the terminal update (current_turn: null)
+        board = [str(cell) for cell in payload.get("board", [])]
+        valid_moves = [int(m) for m in payload.get("valid_moves", [])]
+        if not valid_moves:
+            return []
+        move, comment = await choose_move(
+            self._llm, self._memory, board, valid_moves, self.profile.system_prompt
+        )
+        return [
+            {"action": "chat", "payload": {"message": comment}},
+            {"action": "submit_move", "payload": {"move": move}},
+        ]
+
+
+async def run_agent(
+    server_url: str, match_id: str, player_name: str, profile: AgentProfile, llm: LLMClient
+) -> None:
+    """Join over REST, then drive one AgentSession over the WS until the room closes (§7.1)."""
+    token = await join_match(server_url, match_id, player_name)
+    session = AgentSession(profile, llm, MemoryWindow(profile.memory_limit))
+    ws_url = server_url.replace("http", "ws", 1) + f"/ws/match/{match_id}?token={token}"
+    async with websockets.connect(ws_url) as ws:
+        async for raw in ws:
+            for action in await session.on_event(json.loads(raw)):
+                await ws.send(json.dumps(action))
+            if session.finished:
+                break
+    print("[agent] connection closed; exiting")
+
+
+def main(argv: list[str] | None = None) -> None:
+    args = parse_args(argv)
+    api_key = load_environment()
+    profile = AgentProfile.load_from_yaml(args.profile)
+    llm = create_llm_client(profile.model_type, api_key, profile.temperature)
+    player_name = args.player_name or profile.name
+    print(f"[agent] {profile.name} heading into match {args.match_id}")
+    asyncio.run(run_agent(args.server_url, args.match_id, player_name, profile, llm))
+
+
+if __name__ == "__main__":
+    main()
