@@ -157,6 +157,43 @@ function renderTurnBanner(currentTurn) {
   else banner.textContent = 'Waiting for the opponent…';
 }
 
+// --- Interaction + end of game (web_ui_spec §6.2-6.3, §8) ---
+
+// A click sends submit_move only if the cell is genuinely playable; the board is NEVER updated
+// optimistically — it re-renders from the resulting state_update.
+function handleCellClick(i) {
+  if (!isGameActive) return;
+  const cell = byId('cell-' + i);
+  if (!cell || cell.disabled || !cell.classList.contains('playable')) return;
+  sendAction('submit_move', { move: i });   // sendAction also guards on socket OPEN
+}
+
+function handleGameOver(result) {
+  isGameActive = false;
+  for (let i = 0; i < 9; i++) {             // freeze: nothing interactive after the game ends
+    const cell = byId('cell-' + i);
+    if (cell) { cell.disabled = true; cell.classList.remove('playable'); }
+  }
+  if (result === 'X' || result === 'O') {   // derive + mark the winning line from the rendered board
+    const marks = [];
+    for (let i = 0; i < 9; i++) { const c = byId('cell-' + i); marks.push(c ? c.textContent : ''); }
+    const line = WIN_LINES.find((cells) => cells.every((i) => marks[i] === result));
+    if (line) line.forEach((i) => { const c = byId('cell-' + i); if (c) c.classList.add('win'); });
+  }
+  setConnectionStatus('over', result);
+  const banner = byId('turn-banner');
+  if (banner) {
+    banner.textContent = result === 'draw' ? "Game over — it's a draw" : ('Game over — ' + result + ' wins');
+  }
+}
+
+function wireBoard() {
+  for (let i = 0; i < 9; i++) {
+    const cell = byId('cell-' + i);
+    if (cell) cell.addEventListener('click', () => handleCellClick(i));
+  }
+}
+
 // --- The single dispatcher (web_ui_spec §6.1). One case per server event. ---
 // Board rendering (state_update) lands in v03.02; chat (chat_message) in v03.03.
 function routeEvent(message) {
@@ -178,8 +215,7 @@ function routeEvent(message) {
     case 'chat_message':
       break;
     case 'game_over':
-      isGameActive = false;
-      setConnectionStatus('over', payload.result);
+      handleGameOver(payload.result);        // freeze + winning line + status + banner
       break;
     case 'error':
       console.warn('server error:', payload.detail);
@@ -196,6 +232,7 @@ function wireUI() {
   if (host) host.addEventListener('click', () => hostMatch().catch((e) => console.error(e)));
   if (join) join.addEventListener('click', () => joinMatch().catch((e) => console.error(e)));
   if (observe) observe.addEventListener('click', () => spectateMatch().catch((e) => console.error(e)));
+  wireBoard();
 }
 
 if (typeof document !== 'undefined') {
@@ -208,6 +245,6 @@ if (typeof window !== 'undefined') {
   window.arena = {
     hostMatch, joinMatch, spectateMatch, joinAndConnect,
     routeEvent, sendAction, setConnectionStatus, setMatchIdDisplay,
-    renderBoard, renderPlayers, resetPlayState,
+    renderBoard, renderPlayers, resetPlayState, handleCellClick, handleGameOver,
   };
 }
