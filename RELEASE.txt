@@ -1,6 +1,22 @@
 AgentArena — Release Notes
 ==========================
 
+Version 04.01.00 (2026-07-21)
+-----------------------------
+Phase v04 (Agent-vs-Agent Orchestration) begins. Version v04.01 — contrasting
+personas: the theater. Shipped via /ship-phase. Git tag: opus-v04.01.00.
+
+- profiles/aggressive.yml (refined): Blaze — an aggressive taunter (center/corner
+  + double-threat play, one-line swaggering trash-talk, temperature 0.9).
+- profiles/cautious.yml (new): Bastion — a wary defender (block-first, draw-seeking,
+  calm/wry voice, temperature 0.4, memory_limit 6). A deliberate contrast to Blaze
+  in name, tone, temperature, and memory, for an entertaining watched match.
+- Both validate against the shipped AgentProfile and drive create_llm_client; the
+  roster test asserts they load, are distinct (cautious temp < aggressive), and
+  factory-dispatch -- with the SDK patched, no paid call.
+- Quality: 201 tests passing (deterministic); mypy --strict clean; the seam is
+  mocked in tests -- zero paid calls (the personas run live only in the v04.02 demo).
+
 Version 03.03.00 (2026-07-21)
 -----------------------------
 Version v03.03 — Chat & the Observer role. THE v03 RELEASE GATE: the Web UI phase
