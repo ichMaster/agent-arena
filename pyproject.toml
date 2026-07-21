@@ -1,3 +1,7 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
 [project]
 name = "agent-arena"
 version = "0.0.0"
@@ -7,8 +11,9 @@ dependencies = [
     # Async SQLite persistence (server/). All durable state lives in SQLite behind the Repository.
     "sqlalchemy[asyncio]>=2.0",
     "aiosqlite>=0.20",
-    # Game Server: FastAPI app + lobby REST (and, later, the WebSocket hub).
+    # Game Server: FastAPI app + lobby REST + the WebSocket hub, run under uvicorn (README run steps).
     "fastapi>=0.110",
+    "uvicorn>=0.30",
     # Agent Client: the Anthropic SDK behind the LLMClient seam (Haiku). Always mocked in tests.
     "anthropic>=0.40",
     # Agent Client: persona profiles are YAML (AgentProfile.load_from_yaml).
@@ -28,6 +33,12 @@ dev = [
     "mypy>=1.8",
     "types-PyYAML",  # strict typing for yaml.safe_load
 ]
+
+[tool.setuptools]
+# Only these three are installable Python packages; without this, setuptools' flat-layout
+# auto-discovery trips over the sibling data/doc dirs (web/, profiles/, scripts/, spec/, tests/)
+# and refuses to build ("Multiple top-level packages discovered").
+packages = ["games", "server", "agent"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
