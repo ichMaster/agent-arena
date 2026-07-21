@@ -1,6 +1,24 @@
 AgentArena — Release Notes
 ==========================
 
+Version 03.03.00 (2026-07-21)
+------------------------------
+Version v03.03 — Chat & the Observer role. **v03 release gate**: the Web UI
+(Player & Observer) is now feature-complete.
+Git tag: opus-opus-v03.03.00 (namespaced — this branch's independent build).
+
+- renderChat/renderSystem: chat bubbles by seat symbol (self left/blue,
+  other right/pink), textContent-escaped, auto-scrolling; system lines for
+  match-start/game-over/errors (closes v03.01 review #2). Chat form posts
+  non-optimistically. (ARENA-OPUS-OPUS-030)
+- renderPlayers labels both cards "Observer" when mySymbol === null; board
+  + chat already read-only for an Observer. End-to-end verified: an
+  Observer join yields symbol:null and no seat. (ARENA-OPUS-OPUS-031)
+- Review fix: the server now refuses a seatless connection's chat
+  ("observers cannot chat"), matching submit_move's "no seat" guard --
+  closing the observer-read-only-chat item v01.04 deferred here (MEDIUM).
+- Quality: 167 tests passing; mypy --strict clean; zero paid calls.
+
 Version 03.02.00 (2026-07-21)
 ------------------------------
 Version v03.02 — Board & gameplay (Player role).
