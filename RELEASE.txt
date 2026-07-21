@@ -1,6 +1,25 @@
 AgentArena — Release Notes
 ==========================
 
+Version 05.03.00 (2026-07-21)
+------------------------------
+Version v05.03 — Polish & docs. **v05 release gate — the MVP is complete.**
+Git tag: opus-opus-v05.03.00 (namespaced — this branch's independent build).
+
+- README.md (created; there was none on this branch): what AgentArena is,
+  architecture at a glance, setup, all three run modes with the real
+  commands, the WS protocol summary, testing, and data/reset.
+  (ARENA-OPUS-OPUS-037)
+- .env.example (created): ANTHROPIC_API_KEY placeholder, tracked; .env
+  stays ignored. tests/test_readme.py doc-smoke keeps the README honest
+  (incl. that uvicorn is a declared dependency). (ARENA-OPUS-OPUS-037)
+- Review: no findings (the README's first command, uvicorn server.main:app,
+  is backed by a declared dependency -- clean-install safe).
+- UI aesthetic: shipped in v03; no UI code touched.
+- Quality: 189 tests passing; mypy --strict clean; zero paid calls.
+
+This completes phases v01-v05 -- all 15 roadmap versions shipped.
+
 Version 05.02.00 (2026-07-21)
 ------------------------------
 Version v05.02 — End-to-end integration suite.
