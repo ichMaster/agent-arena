@@ -46,3 +46,14 @@ def test_events_returns_a_copy() -> None:
 def test_non_positive_limit_raises(bad_limit: int) -> None:
     with pytest.raises(ValueError):
         MemoryWindow(limit=bad_limit)
+
+
+def test_long_chat_is_truncated() -> None:
+    """Code review #2: one huge opponent message can't bloat every later prompt."""
+    window = MemoryWindow(limit=3)
+    window.record_chat("O", "x" * 5000)
+    (event,) = window.events()
+    assert len(event) < 250  # bounded, not the raw 5000 chars
+    assert "…" in event  # truncation is visible
+    window.record_chat("O", "short stays intact")
+    assert 'O said: "short stays intact"' in window.events()
