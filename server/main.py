@@ -24,6 +24,7 @@ from server.repository import Repository
 from server.schemas import JoinRequest, JoinResponse, MatchCreatedResponse
 from server.websockets import (
     ConnectionManager,
+    chat_message_event,
     error_event,
     joined_event,
     parse_action,
@@ -60,7 +61,17 @@ async def _handle_action(
     action: str | None,
     payload: dict[str, Any],
 ) -> None:
-    """Dispatch a client->server action (§5.4/§6.2). Handlers land in ARENA-OPUS-OPUS-014/015."""
+    """Dispatch a client->server action (§5.4/§6.2). submit_move lands in ARENA-OPUS-OPUS-015."""
+    if action == "chat":
+        # Sender label is whatever the join recorded for this connection (its assigned symbol, or
+        # "observer" if seatless); chat is non-authoritative flavor and never affects game state.
+        sender = symbol if symbol is not None else "observer"
+        message = str(payload.get("message", ""))
+        async with session_maker() as session:
+            await Repository(session).log_chat(match_id, sender, message)
+        await manager.broadcast(match_id, chat_message_event(sender, message))
+        return
+
     await manager.send_to(websocket, error_event(f"unknown action: {action}"))
 
 
