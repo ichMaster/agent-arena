@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agent-arena"
+version = "0.0.0"
+description = "AgentArena — a spectatable arena for LLM-powered agents to compete at turn-based board games."
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+# Local dev toolchain (installed into a gitignored .venv/); the LLM is always mocked in tests.
+dev = [
+    "pytest>=8",
+    "mypy>=1.8",
+]
+
+[tool.setuptools]
+# Only these are installable Python packages. Without this, setuptools' flat-layout auto-discovery
+# trips over web/, profiles/, scripts/, spec/ and fails with "Multiple top-level packages discovered".
+packages = ["games", "server", "agent"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.mypy]
+# Strict typing is a project non-negotiable. One source of truth lives here.
+strict = true
+files = ["games", "server", "agent"]
+warn_unused_configs = true
